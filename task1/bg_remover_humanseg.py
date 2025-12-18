@@ -1,3 +1,4 @@
+import sys
 import cv2
 import numpy as np
 from rembg import remove, new_session
@@ -37,6 +38,8 @@ while cap.isOpened():
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     output_rgba = remove(rgb_frame, session=session)
 
+    output_rgba = np.asarray(output_rgba)
+
     # Extract Alpha and normalize to 0-1
     mask = output_rgba[:, :, 3] / 255.0
     mask_3d = mask[:, :, np.newaxis]
@@ -44,9 +47,13 @@ while cap.isOpened():
     # 5. Composite
     # Foreground is the webcam frame, Background is the loaded image
     
-    # foreground = frame * mask_3d
-    white = np.full_like(frame, fill_value=1).astype(np.uint8)
-    foreground = white * mask_3d
+    foreground = np.zeros_like(frame, dtype=np.uint8)
+    if sys.argv[1] == "rgb":
+        foreground = frame * mask_3d
+    elif sys.argv[1] == "sil":
+        white = np.full_like(frame, fill_value=1).astype(np.uint8)
+        foreground = white * mask_3d
+    
     background = bg_image * (1.0 - mask_3d)
     
     final_image = (foreground + background).astype(np.uint8)
