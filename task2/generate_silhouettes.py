@@ -29,14 +29,58 @@ def parse_links_dir(links_dir):
     return links_dict
 
 
-def parse_keypoints(keypoints, links_dict):
+def get_hand_middle_keypoint(hand_keypoints):
+    idxes = [1, 5, 9, 13, 17]
+    visible_keypoints = [hand_keypoints[i] for i in idxes if hand_keypoints[i][2] != 0]
+    visible_keypoints = np.array(visible_keypoints)
+    hand_middle_keypoint = np.mean(visible_keypoints[:, :2], axis=0)
+    return hand_middle_keypoint
+
+
+def get_head_middle_keypoint(keypoints):
+    r_ear_keypoint = keypoints[17]
+    l_ear_keypoint = keypoints[18]
+
+    if r_ear_keypoint[2] != 0 and l_ear_keypoint[2] != 0:
+        head_middle_keypoint = (r_ear_keypoint[:2] + l_ear_keypoint[:2]) / 2
+    elif r_ear_keypoint[2] != 0:
+        head_middle_keypoint = r_ear_keypoint[:2]
+    else:
+        head_middle_keypoint = l_ear_keypoint[:2]
+
+    return head_middle_keypoint
+
+
+def parse_keypoints(keypoints, left_hand_keypoints, right_hand_keypoints, links_dict):
     keypoints_dict = {}
+    head_middle_keypoint = None
     for link_name, link_data in links_dict.items():
-        dst_pt1 = keypoints[link_data["pt1_idx"]][:2]
-        dst_pt2 = keypoints[link_data["pt2_idx"]][:2]
+        # Calculate the head middle keypoint based on the visible ear keypoints
+        if link_name == "neck":
+            dst_pt1 = keypoints[link_data["pt1_idx"]][:2]
+            if head_middle_keypoint is None:
+                head_middle_keypoint = get_head_middle_keypoint(keypoints)
+            dst_pt2 = head_middle_keypoint
+        elif link_name == "head":
+            if head_middle_keypoint is None:
+                head_middle_keypoint = get_head_middle_keypoint(keypoints)
+            dst_pt1 = head_middle_keypoint
+            dst_pt2 = keypoints[link_data["pt2_idx"]][:2]
+        elif link_name == "right_hand":
+            dst_pt1 = right_hand_keypoints[0][:2]
+            dst_pt2 = get_hand_middle_keypoint(right_hand_keypoints)
+        elif link_name == "left_hand":
+            dst_pt1 = left_hand_keypoints[0][:2]
+            dst_pt2 = get_hand_middle_keypoint(left_hand_keypoints)
+        else:
+            dst_pt1 = keypoints[link_data["pt1_idx"]][:2]
+            dst_pt2 = keypoints[link_data["pt2_idx"]][:2]
+
         length = np.linalg.norm(dst_pt2 - dst_pt1)
         keypoints_dict[link_name] = {}
         keypoints_dict[link_name]["length"] = length
+        keypoints_dict[link_name]["dst_pt1"] = dst_pt1
+        keypoints_dict[link_name]["dst_pt2"] = dst_pt2
 
     torso_length = keypoints_dict["torso"]["length"]
 
@@ -44,6 +88,24 @@ def parse_keypoints(keypoints, links_dict):
         keypoint_link_data["relative_length"] = (
             keypoint_link_data["length"] / torso_length
         )
+
+    # Adjust the head dst point so that the relative lengths match
+    head_length = keypoints_dict["head"]["length"]
+    desired_head_length = (
+        links_dict["head"]["relative_length"]
+        / keypoints_dict["head"]["relative_length"]
+        * head_length
+    )
+    dst_pt1 = keypoints_dict["head"]["dst_pt1"]
+    dst_pt2 = keypoints_dict["head"]["dst_pt2"]
+    head_vec = dst_pt2 - dst_pt1
+    head_vec_normalized = head_vec / np.linalg.norm(head_vec)
+    dst_pt2 = dst_pt1 + head_vec_normalized * desired_head_length
+    keypoints_dict["head"]["length"] = desired_head_length
+    keypoints_dict["head"]["dst_pt2"] = dst_pt2
+    keypoints_dict["head"]["relative_length"] = (
+        keypoints_dict["head"]["length"] / torso_length
+    )
 
     return keypoints_dict
 
@@ -99,8 +161,22 @@ def get_link_transformation_matrix(
     return m[:2, :]
 
 
-def generate_silhouette(keypoints, links_dict, background_img, width_scale_factor=0.85):
-    keypoint_dict = parse_keypoints(keypoints, links_dict)
+def generate_silhouette(
+    persons_dict, links_dict, background_img, width_scale_factor=0.85
+):
+    keypoints = persons_dict["pose_keypoints_2d"]
+    keypoints = np.array(keypoints).reshape((-1, 3))
+
+    left_hand_keypoints = persons_dict["hand_left_keypoints_2d"]
+    left_hand_keypoints = np.array(left_hand_keypoints).reshape((-1, 3))
+
+    right_hand_keypoints = persons_dict["hand_right_keypoints_2d"]
+    right_hand_keypoints = np.array(right_hand_keypoints).reshape((-1, 3))
+
+    keypoints_dict = parse_keypoints(
+        keypoints, left_hand_keypoints, right_hand_keypoints, links_dict
+    )
+
     h, w = background_img.shape[:2]
 
     canvas = background_img.copy()
@@ -109,12 +185,13 @@ def generate_silhouette(keypoints, links_dict, background_img, width_scale_facto
         src_pt1 = link_data["pt1"]
         src_pt2 = link_data["pt2"]
         link_img = link_data["image"]
-        dst_pt1 = keypoints[link_data["pt1_idx"]][:2]
-        dst_pt2 = keypoints[link_data["pt2_idx"]][:2]
+
+        dst_pt1 = keypoints_dict[link_name]["dst_pt1"]
+        dst_pt2 = keypoints_dict[link_name]["dst_pt2"]
 
         width_scale_coeff = (
             link_data["relative_length"]
-            / keypoint_dict[link_name]["relative_length"]
+            / keypoints_dict[link_name]["relative_length"]
             * width_scale_factor
         )
 
@@ -157,13 +234,9 @@ def main():
 
     for persons_dict in keypoints_json["people"]:
         person_id = persons_dict["person_id"]
-        keypoints = persons_dict["pose_keypoints_2d"]
-        keypoints_reshaped = np.array(keypoints).reshape((-1, 3))
-        print(
-            f"Person's with person_id {person_id} keypoints: \n{keypoints_reshaped}\n"
-        )
+        print(f"Processing person with person_id {person_id}")
         background_img = generate_silhouette(
-            keypoints_reshaped, links_dict, background_img, width_scale_factor
+            persons_dict, links_dict, background_img, width_scale_factor
         )
 
     cv2.imwrite(str(output_path), background_img)
