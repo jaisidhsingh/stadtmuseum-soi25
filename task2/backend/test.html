@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOI Backend Test</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        section {
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+
+        h2 {
+            margin-top: 0;
+        }
+
+        .image-grid {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .image-card {
+            border: 1px solid #eee;
+            padding: 5px;
+            text-align: center;
+        }
+
+        .image-card img {
+            max-width: 150px;
+            max-height: 150px;
+            display: block;
+            margin: 0 auto;
+        }
+
+        button {
+            padding: 8px 16px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        input[type="text"],
+        input[type="email"] {
+            padding: 8px;
+            width: 300px;
+        }
+
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            overflow-x: auto;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .success {
+            color: green;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>SOI Backend Test Console</h1>
+
+    <section>
+        <h2>1. Segment Image</h2>
+        <input type="file" id="segInput" accept="image/*">
+        <button onclick="segmentImage()">Upload & Segment</button>
+        <div id="segStatus"></div>
+        <div id="segResults" class="image-grid"></div>
+    </section>
+
+    <section>
+        <h2>2. Compose Image</h2>
+        <div>
+            <label>Silhouette ID: <input type="text" id="compSilId" placeholder="e.g. sil_orig_..."></label>
+        </div>
+        <div>
+            <label>Background ID: <input type="text" id="compBgId" value="bg1"></label>
+        </div>
+        <button onclick="composeImage()">Compose</button>
+        <div id="compStatus"></div>
+        <div id="compResults" class="image-grid"></div>
+    </section>
+
+    <section>
+        <h2>3. Email Results</h2>
+        <div>
+            <label>Email: <input type="email" id="emailAddr" placeholder="user@example.com"></label>
+        </div>
+        <div>
+            <label>IDs (comma sep): <input type="text" id="emailIds" placeholder="id1, id2..."></label>
+        </div>
+        <button onclick="sendEmail()">Send Email</button>
+        <div id="emailStatus"></div>
+    </section>
+
+    <section>
+        <h2>4. System</h2>
+        <button onclick="clearData()" style="background-color: #dc3545;">Clear All Session Data</button>
+        <div id="clearStatus"></div>
+    </section>
+
+    <script>
+        const API_URL = "http://localhost:8000";
+
+        async function segmentImage() {
+            const input = document.getElementById('segInput');
+            const status = document.getElementById('segStatus');
+            const results = document.getElementById('segResults');
+
+            if (!input.files[0]) {
+                status.innerText = "Please select a file.";
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('image', input.files[0]);
+
+            status.innerText = "Processing... (This make take a minute for ComfyUI)";
+            results.innerHTML = "";
+
+            try {
+                const res = await fetch(`${API_URL}/segment`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (!res.ok) throw new Error(data.detail || 'Error');
+
+                status.innerHTML = "<span class='success'>Success!</span>";
+
+                // Display Original
+                addResultImage(results, data.original, "Original");
+
+                // Display Stylized
+                data.stylized.forEach((item, idx) => {
+                    addResultImage(results, item, `Stylized ${idx + 1}`);
+                });
+
+                // Auto-fill composition input with original ID
+                document.getElementById('compSilId').value = data.original.id;
+
+                // Update email IDs list
+                const allIds = [data.original.id, ...data.stylized.map(s => s.id)];
+                document.getElementById('emailIds').value = allIds.join(', ');
+
+            } catch (e) {
+                status.innerHTML = `<span class='error'>${e.message}</span>`;
+            }
+        }
+
+        async function composeImage() {
+            const silId = document.getElementById('compSilId').value;
+            const bgId = document.getElementById('compBgId').value;
+            const status = document.getElementById('compStatus');
+            const results = document.getElementById('compResults');
+
+            if (!silId || !bgId) {
+                status.innerText = "Missing IDs";
+                return;
+            }
+
+            status.innerText = "Compositing...";
+            results.innerHTML = "";
+
+            try {
+                const res = await fetch(`${API_URL}/composite`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ silhouette_id: silId, background_id: bgId })
+                });
+                const data = await res.json();
+
+                if (!res.ok) throw new Error(data.detail || 'Error');
+
+                status.innerHTML = "<span class='success'>Success!</span>";
+                addResultImage(results, data.result, "Composition");
+
+                // Append to email IDs
+                const current = document.getElementById('emailIds').value;
+                document.getElementById('emailIds').value = current ? current + ", " + data.result.id : data.result.id;
+
+            } catch (e) {
+                status.innerHTML = `<span class='error'>${e.message}</span>`;
+            }
+        }
+
+        async function sendEmail() {
+            const email = document.getElementById('emailAddr').value;
+            const idsStr = document.getElementById('emailIds').value;
+            const status = document.getElementById('emailStatus');
+
+            if (!email || !idsStr) {
+                status.innerText = "Missing email or IDs";
+                return;
+            }
+
+            const ids = idsStr.split(',').map(s => s.trim()).filter(s => s);
+
+            status.innerText = "Sending...";
+
+            try {
+                const res = await fetch(`${API_URL}/send-email`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email, ids: ids })
+                });
+                const data = await res.json();
+
+                if (!res.ok) throw new Error(data.detail || 'Error');
+
+                status.innerHTML = `<span class='success'>${data.message}</span>`;
+
+            } catch (e) {
+                status.innerHTML = `<span class='error'>${e.message}</span>`;
+            }
+        }
+
+        async function clearData() {
+            const status = document.getElementById('clearStatus');
+            status.innerText = "Clearing...";
+
+            try {
+                const res = await fetch(`${API_URL}/clear`, { method: 'POST' });
+                const data = await res.json();
+
+                if (!res.ok) throw new Error(data.detail || 'Error');
+
+                status.innerHTML = "<span class='success'>Session cleared.</span>";
+                document.getElementById('segResults').innerHTML = "";
+                document.getElementById('compResults').innerHTML = "";
+
+            } catch (e) {
+                status.innerHTML = `<span class='error'>${e.message}</span>`;
+            }
+        }
+
+        function addResultImage(container, resource, label) {
+            const div = document.createElement('div');
+            div.className = 'image-card';
+            div.innerHTML = `
+                <h4>${label}</h4>
+                <a href="${resource.url}" target="_blank">
+                    <img src="${resource.url}" alt="${label}">
+                </a>
+                <p><small>${resource.id}</small></p>
+                <button onclick="document.getElementById('compSilId').value = '${resource.id}'">Use</button>
+            `;
+            container.appendChild(div);
+        }
+    </script>
+</body>
+
+</html>

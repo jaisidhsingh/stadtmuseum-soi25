@@ -12,3 +12,6 @@ wheels/
 # Other stuff
 .vscode
 .DS_Store
+
+task2/backend/ComfyUI
+task2/backend/outputs
