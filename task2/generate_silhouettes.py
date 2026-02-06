@@ -298,6 +298,7 @@ def generate_silhouette(
     head_direction = get_head_direction(keypoints)
     if head_direction != links_dict["head"]["direction"]:
         links_dict["head"] = flip_link(links_dict["head"])
+        links_dict["neck"] = flip_link(links_dict["neck"])
     links_dict = adjust_link_direction(links_dict, keypoints_dict)
 
     h, w = background_img.shape[:2]
