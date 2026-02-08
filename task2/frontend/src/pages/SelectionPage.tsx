@@ -2,185 +2,94 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Check } from "lucide-react";
 
-// Mock data for silhouettes and backgrounds
+// Mock data for silhouettes
 const SILHOUETTES = [
   { id: "s1", name: "Classic", color: "#1a1a2e" },
-  { id: "s2", name: "Ornate", color: "#16213e" },
-  { id: "s3", name: "Minimal", color: "#0f3460" },
-  { id: "s4", name: "Dramatic", color: "#1a1a1a" },
 ];
 
-const BACKGROUNDS = [
-  { id: "b1", name: "Desert Palace", colors: ["#e94560", "#ff6b6b", "#feca57", "#48dbfb"] },
-  { id: "b2", name: "Moonlit Garden", colors: ["#5f27cd", "#341f97", "#2e86de", "#54a0ff"] },
-  { id: "b3", name: "Flying Carpet", colors: ["#ff9f43", "#ee5a24", "#f8b739", "#ffeaa7"] },
-  { id: "b4", name: "Magic Cave", colors: ["#00d2d3", "#01a3a4", "#10ac84", "#1dd1a1"] },
-  { id: "b5", name: "Sunset Oasis", colors: ["#ff6b6b", "#feca57", "#ff9ff3", "#f368e0"] },
-  { id: "b6", name: "Starry Night", colors: ["#222f3e", "#576574", "#8395a7", "#c8d6e5"] },
-  { id: "b7", name: "Golden Temple", colors: ["#ffd32a", "#ff9f1a", "#ff793f", "#cd6133"] },
-  { id: "b8", name: "Enchanted Forest", colors: ["#26de81", "#20bf6b", "#0fb9b1", "#2bcbba"] },
-];
-
-// Quadrant colors
-const QUADRANT_COLORS = ["#e94560", "#feca57", "#48dbfb", "#26de81"];
-
-type Selection = {
-  silhouetteId: string;
-  backgroundId: string;
-  quadrantIndex: number;
-};
+const GALLERY_ITEMS = Array.from({ length: 12 }).map((_, i) => ({
+  id: `g${i + 1}`,
+  title: `Gallery Item ${i + 1}`,
+  color: `hsl(${Math.random() * 360}, 70%, 80%)`, // Placeholder colors
+}));
 
 const SelectionPage = () => {
   const navigate = useNavigate();
-  const [selectedSilhouette, setSelectedSilhouette] = useState(SILHOUETTES[0].id);
-  const [selectedBackground, setSelectedBackground] = useState(BACKGROUNDS[0].id);
-  const [selections, setSelections] = useState<Selection[]>([]);
+  const [selectedCards, setSelectedCards] = useState<string[]>([]);
 
-  const currentBackground = BACKGROUNDS.find((b) => b.id === selectedBackground);
-
-  const isSelected = (silhouetteId: string, backgroundId: string, quadrantIndex: number) => {
-    return selections.some(
-      (s) =>
-        s.silhouetteId === silhouetteId &&
-        s.backgroundId === backgroundId &&
-        s.quadrantIndex === quadrantIndex
+  const toggleSelection = (id: string) => {
+    setSelectedCards((prev) =>
+      prev.includes(id)
+        ? prev.filter((item) => item !== id)
+        : [...prev, id]
     );
   };
 
-  const toggleSelection = (quadrantIndex: number) => {
-    const selection: Selection = {
-      silhouetteId: selectedSilhouette,
-      backgroundId: selectedBackground,
-      quadrantIndex,
-    };
-
-    const existingIndex = selections.findIndex(
-      (s) =>
-        s.silhouetteId === selection.silhouetteId &&
-        s.backgroundId === selection.backgroundId &&
-        s.quadrantIndex === selection.quadrantIndex
+  const handleProceed = () => {
+    const selectedItems = GALLERY_ITEMS.filter((item) =>
+      selectedCards.includes(item.id)
     );
-
-    if (existingIndex >= 0) {
-      setSelections(selections.filter((_, i) => i !== existingIndex));
-    } else {
-      setSelections([...selections, selection]);
-    }
-  };
-
-  const proceedToConfirmation = () => {
-    sessionStorage.setItem("selections", JSON.stringify(selections));
-    sessionStorage.setItem("silhouettes", JSON.stringify(SILHOUETTES));
-    sessionStorage.setItem("backgrounds", JSON.stringify(BACKGROUNDS));
+    sessionStorage.setItem("selectedGalleryItems", JSON.stringify(selectedItems));
     navigate("/confirmation");
   };
 
   return (
-    <div className="h-screen bg-background p-4 pb-16 flex overflow-hidden">
-      {/* Left sidebar - Silhouettes */}
-      <div className="w-24 flex-shrink-0 mr-4">
-        <h3 className="text-sm font-semibold mb-2">Silhouettes</h3>
-        <div className="space-y-2">
-          {SILHOUETTES.map((silhouette) => (
-            <Card
-              key={silhouette.id}
-              className={`p-2 cursor-pointer transition-all ${
-                selectedSilhouette === silhouette.id
-                  ? "ring-2 ring-primary"
-                  : "hover:ring-1 hover:ring-muted-foreground"
-              }`}
-              onClick={() => setSelectedSilhouette(silhouette.id)}
-            >
-              <div
-                className="w-full aspect-square rounded"
-                style={{ backgroundColor: silhouette.color }}
-              />
-              <p className="text-xs text-center mt-1">{silhouette.name}</p>
-            </Card>
-          ))}
-        </div>
+    <div className="h-screen bg-background p-4 flex">
+      {/* Silhouette (single) preview - Left Panel */}
+      <div className="w-64 flex-shrink-0 border-r pr-6 mr-6 flex flex-col">
+        <h3 className="text-xl font-semibold mb-4">Silhouette</h3>
+        <Card className="p-4">
+          <div
+            className="w-full aspect-square rounded"
+            style={{ backgroundColor: SILHOUETTES[0].color }}
+          />
+          <p className="text-lg text-center mt-2 font-medium">{SILHOUETTES[0].name}</p>
+        </Card>
       </div>
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-h-0">
-        {/* Quadrants */}
-        <div className="flex-1 grid grid-cols-2 gap-2 mb-4">
-          {QUADRANT_COLORS.map((color, index) => (
-            <Card
-              key={index}
-              className={`relative cursor-pointer transition-all hover:scale-[1.02] ${
-                isSelected(selectedSilhouette, selectedBackground, index)
-                  ? "ring-2 ring-primary"
-                  : ""
-              }`}
-              style={{ backgroundColor: currentBackground?.colors[index] || color }}
-              onClick={() => toggleSelection(index)}
-            >
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div
-                  className="w-1/2 h-3/4 rounded opacity-80"
-                  style={{
-                    backgroundColor: SILHOUETTES.find((s) => s.id === selectedSilhouette)?.color,
-                  }}
-                />
-              </div>
-              {isSelected(selectedSilhouette, selectedBackground, index) && (
-                <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1">
-                  <Check className="w-4 h-4" />
-                </div>
-              )}
-              <div className="absolute bottom-2 left-2 text-xs font-semibold text-white drop-shadow">
-                Quadrant {index + 1}
-              </div>
-            </Card>
-          ))}
-        </div>
-
-        {/* Bottom carousel - Backgrounds */}
-        <div>
-          <h3 className="text-sm font-semibold mb-2">Backgrounds</h3>
-          <ScrollArea className="w-full whitespace-nowrap">
-            <div className="flex space-x-2 pb-2">
-              {BACKGROUNDS.map((bg) => (
-                <Card
-                  key={bg.id}
-                  className={`flex-shrink-0 w-24 p-2 cursor-pointer transition-all ${
-                    selectedBackground === bg.id
-                      ? "ring-2 ring-primary"
-                      : "hover:ring-1 hover:ring-muted-foreground"
+      {/* Main content - Right Panel */}
+      <div className="flex-1 flex flex-col min-h-0 relative">
+        {/* Gallery Section - Scrollable Area */}
+        <div className="flex-1 overflow-y-auto pb-28 p-3">
+          <h3 className="text-xl font-semibold mb-4">Gallery</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {GALLERY_ITEMS.map((item) => (
+              <Card
+                key={item.id}
+                className={`cursor-pointer transition-all hover:shadow-md relative overflow-hidden group ${selectedCards.includes(item.id) ? "ring-2 ring-primary" : ""
                   }`}
-                  onClick={() => setSelectedBackground(bg.id)}
-                >
-                  <div className="grid grid-cols-2 gap-1 aspect-square">
-                    {bg.colors.map((color, i) => (
-                      <div
-                        key={i}
-                        className="rounded-sm"
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
+                onClick={() => toggleSelection(item.id)}
+              >
+                <div
+                  className="aspect-[4/3] w-full"
+                  style={{ backgroundColor: item.color }}
+                />
+                <div className="p-3">
+                  <p className="font-medium truncate">{item.title}</p>
+                </div>
+                {selectedCards.includes(item.id) && (
+                  <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1 shadow-sm">
+                    <Check className="w-4 h-4" />
                   </div>
-                  <p className="text-xs text-center mt-1 truncate">{bg.name}</p>
-                </Card>
-              ))}
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
+                )}
+              </Card>
+            ))}
+          </div>
         </div>
 
-        {/* Selection count and proceed button */}
-        <div className="flex items-center justify-between mt-4 pt-4 border-t">
-          <p className="text-sm">
-            {selections.length} selected
-          </p>
+        {/* Footer Area with Count and Next Button */}
+        <div className="absolute bottom-0 right-0 p-2 bg-background/80 backdrop-blur-sm w-full flex justify-end items-center gap-6 border-t pb-12">
+          <span className="text-lg font-medium text-muted-foreground">
+            {selectedCards.length} selected
+          </span>
           <Button
-            disabled={selections.length === 0}
-            onClick={proceedToConfirmation}
+            size="lg"
+            className="text-lg px-8 py-6"
+            onClick={handleProceed}
           >
-            Send Selection to Email
+            Next
           </Button>
         </div>
       </div>
@@ -189,3 +98,4 @@ const SelectionPage = () => {
 };
 
 export default SelectionPage;
+

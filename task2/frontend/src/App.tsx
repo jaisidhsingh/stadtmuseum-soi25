@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import StartPage from "./pages/StartPage";
 import CameraPage from "./pages/CameraPage";
+import SilhouettePage from "./pages/SilhouettePage";
 import SelectionPage from "./pages/SelectionPage";
 import ConfirmationPage from "./pages/ConfirmationPage";
 import PrivacyFooter from "./components/PrivacyFooter";
@@ -14,13 +15,15 @@ const queryClient = new QueryClient();
 
 const AppContent = () => {
   const location = useLocation();
-  const showFooter = location.pathname !== "/";
+  // Show footer on all pages
+  const showFooter = true;
 
   return (
     <>
       <Routes>
         <Route path="/" element={<StartPage />} />
         <Route path="/camera" element={<CameraPage />} />
+        <Route path="/silhouette" element={<SilhouettePage />} />
         <Route path="/selection" element={<SelectionPage />} />
         <Route path="/confirmation" element={<ConfirmationPage />} />
         <Route path="*" element={<NotFound />} />

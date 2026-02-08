@@ -67,7 +67,7 @@ const CameraPage = () => {
   const proceedToSelection = () => {
     if (capturedImage) {
       sessionStorage.setItem("capturedImage", capturedImage);
-      navigate("/selection");
+      navigate("/silhouette");
     }
   };
 
