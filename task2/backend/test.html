@@ -84,6 +84,17 @@
     <section>
         <h2>1. Segment Image</h2>
         <input type="file" id="segInput" accept="image/*">
+        <div style="margin: 10px 0;">
+            <label>
+                <input type="checkbox" id="useClassicalWarping">
+                Use Classical Warping (instead of ComfyUI)
+            </label>
+        </div>
+        <div style="margin: 10px 0;" id="partsSection">
+            <label>Parts to warp (comma-separated, leave empty for all):</label><br>
+            <input type="text" id="partsToWarp" placeholder="e.g. head, arms, legs, feet" style="width: 300px;">
+            <br><small>Groups: arms, legs, feet, hands | Individual: head, neck, torso, right_upper_arm, etc.</small>
+        </div>
         <button onclick="segmentImage()">Upload & Segment</button>
         <div id="segStatus"></div>
         <div id="segResults" class="image-grid"></div>
@@ -127,6 +138,8 @@
             const input = document.getElementById('segInput');
             const status = document.getElementById('segStatus');
             const results = document.getElementById('segResults');
+            const useClassical = document.getElementById('useClassicalWarping').checked;
+            const partsToWarp = document.getElementById('partsToWarp').value.trim();
 
             if (!input.files[0]) {
                 status.innerText = "Please select a file.";
@@ -135,8 +148,15 @@
 
             const formData = new FormData();
             formData.append('image', input.files[0]);
+            formData.append('use_classical_warping', useClassical);
+            if (partsToWarp) {
+                formData.append('parts_to_warp', partsToWarp);
+            }
 
-            status.innerText = "Processing... (This make take a minute for ComfyUI)";
+            const processingMsg = useClassical
+                ? "Processing with classical warping..."
+                : "Processing... (This may take a minute for ComfyUI)";
+            status.innerText = processingMsg;
             results.innerHTML = "";
 
             try {
@@ -153,9 +173,10 @@
                 // Display Original
                 addResultImage(results, data.original, "Original");
 
-                // Display Stylized
+                // Display Stylized/Warped
+                const label = useClassical ? "Warped" : "Stylized";
                 data.stylized.forEach((item, idx) => {
-                    addResultImage(results, item, `Stylized ${idx + 1}`);
+                    addResultImage(results, item, `${label} ${idx + 1}`);
                 });
 
                 // Auto-fill composition input with original ID

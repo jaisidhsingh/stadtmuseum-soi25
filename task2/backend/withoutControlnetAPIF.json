@@ -50,7 +50,7 @@
   "5": {
     "inputs": {
       "seed": 709105066747230,
-      "steps": 15,
+      "steps": 25,
       "cfg": 7,
       "sampler_name": "dpmpp_3m_sde_gpu",
       "scheduler": "karras",
@@ -190,7 +190,7 @@
   },
   "26": {
     "inputs": {
-      "image": "achmed.jpg"
+      "image": "queen.png"
     },
     "class_type": "LoadImage",
     "_meta": {
@@ -199,7 +199,7 @@
   },
   "28": {
     "inputs": {
-      "weight": 0.8,
+      "weight": 1,
       "start_at": 0,
       "end_at": 1,
       "weight_type": "standard",
@@ -223,7 +223,7 @@
   },
   "29": {
     "inputs": {
-      "preset": "PLUS (high strength)",
+      "preset": "STANDARD (medium strength)",
       "model": [
         "1",
         0

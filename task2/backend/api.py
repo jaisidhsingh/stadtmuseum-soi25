@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import List, Optional
 import time
 import logging
+from PIL import Image
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Body
 from fastapi.staticfiles import StaticFiles
@@ -21,6 +22,8 @@ from pydantic import BaseModel
 from segmentation_engine import SegmentationEngine
 from data_manager import SessionManager, BACKGROUNDS
 from email_service import EmailService
+from classical_warping import ClassicalWarpingEngine, get_default_engine
+from pose_estimator import PoseEstimator, get_pose_estimator
 import comfyFunctions
 
 # Logging
@@ -46,6 +49,19 @@ app.mount("/outputs", StaticFiles(directory=str(OUTPUTS_DIR)), name="outputs")
 # Initialize Engines
 seg_engine = SegmentationEngine()
 email_service = EmailService()
+
+# Classical warping engines (lazy init on first use)
+pose_estimator = None
+classical_warper = None
+
+def get_classical_engines():
+    """Lazy initialize classical warping engines."""
+    global pose_estimator, classical_warper
+    if pose_estimator is None:
+        pose_estimator = get_pose_estimator()
+    if classical_warper is None:
+        classical_warper = get_default_engine()
+    return pose_estimator, classical_warper
 
 # --- Data Models ---
 
@@ -82,9 +98,21 @@ async def root():
     return FileResponse(Path(__file__).parent / "test.html")
 
 @app.post("/segment", response_model=SegmentationResponse)
-async def segment_image(image: UploadFile = File(...)):
+async def segment_image(
+    image: UploadFile = File(...),
+    use_classical_warping: bool = Form(False),
+    parts_to_warp: Optional[str] = Form(None),
+):
     """
-    API 1: Input image -> Returns 1 original silhouette + 2 stylized silhouettes (via ComfyUI).
+    API 1: Input image -> Returns 1 original silhouette + stylized silhouettes.
+    
+    Args:
+        image: Input image file
+        use_classical_warping: If True, use classical warping instead of ComfyUI
+        parts_to_warp: Comma-separated list of body parts to warp (e.g., "head,arms,legs")
+                      Available parts: head, neck, torso, arms, legs, feet, hands,
+                      or specific: right_upper_arm, left_calf, etc.
+                      Default (None) = all parts
     """
     try:
         # 1. Save Input
@@ -111,50 +139,130 @@ async def segment_image(image: UploadFile = File(...)):
             url=SessionManager.get_relative_url(orig_sil_path)
         )
 
-        # 3. Generate Stylized Silhouettes (ComfyUI)
+        # 3. Generate Stylized Silhouettes
         stylized_resources = []
-        try:
-            logger.info("Submitting ComfyUI job...")
-            job_id = comfyFunctions.submit_job(str(saved_input_path))
-            
-            # Wait for completion (blocking)
-            logger.info(f"Waiting for ComfyUI job {job_id}...")
-            result = comfyFunctions.wait_for_job(job_id, timeout=120.0)
-            
-            if result.status == comfyFunctions.JobStatus.FINISHED and result.generated_images:
-                 # Move ComfyUI outputs to Session
-                for i, rel_path in enumerate(result.generated_images):
-                    filename = Path(rel_path).name
-                    source_path = OUTPUTS_DIR / filename
+        
+        if use_classical_warping:
+            # Classical warping path: pose detection -> warp templates
+            try:
+                logger.info("Using classical warping...")
+                pe, cw = get_classical_engines()
+                
+                # Detect poses on original input image
+                logger.info("Detecting poses...")
+                input_img = Image.open(str(saved_input_path))
+                pose_result = pe.detect_poses(input_img, include_hands=True)
+                
+                try:
+                    # 4. Save Keypoints Visualization (Debug)
+                    vis_img = pe.draw_poses(input_img, pose_result)
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as vis_tmp:
+                        vis_img.save(vis_tmp, format="PNG")
+                        vis_tmp_path = Path(vis_tmp.name)
+                    vis_id, vis_path = SessionManager.save_silhouette(vis_tmp_path, input_id, "debug_keypoints")
+                    vis_tmp_path.unlink()
+                     # Optional: Add to resources list if needed by frontend, or just keep on disk
+                except Exception as e:
+                    logger.warning(f"Failed to save keypoint visualization: {e}")
+                
+                if pose_result.get("people"):
+                    # Parse parts_to_warp parameter
+                    parts_list = None
+                    if parts_to_warp:
+                        parts_list = [p.strip() for p in parts_to_warp.split(",")]
                     
-                    if source_path.exists():
-                        # Requested Change: Segment the stylized output
-                        logger.info(f"Segmenting stylized output {filename}...")
-                        try:
-                            stylized_seg_img = seg_engine.extract_silhouette(str(source_path))
-                            
-                            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as style_tmp:
-                                stylized_seg_img.save(style_tmp, format="PNG")
-                                style_tmp_path = Path(style_tmp.name)
-                            
-                            style_id, saved_path = SessionManager.save_silhouette(style_tmp_path, input_id, f"style_{i}")
-                            style_tmp_path.unlink()
-                            
-                            stylized_resources.append(ImageResource(
-                                id=style_id,
-                                url=SessionManager.get_relative_url(saved_path)
-                            ))
-                        except Exception as e:
-                            logger.error(f"Failed to segment stylized output {filename}: {e}")
-                            # Fallback: Save original unsegmented if segmentation fails? 
-                            # Or skip? Let's skip to avoid confusion.
-                            pass
-            else:
-                logger.warning(f"ComfyUI job failed or returned no images: {result.error}")
+                    people = pose_result.get("people", [])
+                    
+                    # Create base transparent canvas
+                    canvas_w = pose_result.get("canvas_width", 1024)
+                    canvas_h = pose_result.get("canvas_height", 1024)
+                    
+                    # Create base canvas
+                    # If specific parts requested, start with original silhouette as base
+                    if parts_list:
+                        # Ensure sil_image is RGBA and matches size
+                        final_canvas = sil_image.convert("RGBA").resize((canvas_w, canvas_h))
+                    else:
+                        # Otherwise start with transparent canvas (full replacement)
+                        final_canvas = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
+                    
+                    logger.info(f"Detected {len(people)} people. generating warped silhouettes...")
+                    
+                    for person in people:
+                        # Generate warped silhouette for this person
+                        person_sil = classical_warper.generate_silhouette(
+                            person,
+                            (canvas_w, canvas_h),
+                            parts_to_warp=parts_list
+                        )
+                        # Composite onto final canvas
+                        final_canvas.alpha_composite(person_sil)
 
-        except Exception as e:
-            logger.error(f"ComfyUI generation failed: {e}")
-            # Continue to return original even if Comfy fails
+                    # Save result
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as warp_tmp:
+                        final_canvas.save(warp_tmp, format="PNG")
+                        warp_tmp_path = Path(warp_tmp.name)
+                    
+                    warp_id, saved_path = SessionManager.save_silhouette(
+                        warp_tmp_path, input_id, "warped_multi"
+                    )
+                    warp_tmp_path.unlink()
+                    
+                    stylized_resources.append(ImageResource(
+                        id=warp_id,
+                        url=SessionManager.get_relative_url(saved_path)
+                    ))
+                else:
+                    logger.warning("No poses detected in image")
+                    
+            except Exception as e:
+                logger.error(f"Classical warping failed: {e}")
+                import traceback
+                traceback.print_exc()
+        else:
+            # ComfyUI diffusion path (original behavior)
+            try:
+                logger.info("Submitting ComfyUI job...")
+                job_id = comfyFunctions.submit_job(str(saved_input_path))
+                
+                # Wait for completion (blocking)
+                logger.info(f"Waiting for ComfyUI job {job_id}...")
+                result = comfyFunctions.wait_for_job(job_id, timeout=120.0)
+                
+                if result.status == comfyFunctions.JobStatus.FINISHED and result.generated_images:
+                     # Move ComfyUI outputs to Session
+                    for i, rel_path in enumerate(result.generated_images):
+                        filename = Path(rel_path).name
+                        source_path = OUTPUTS_DIR / filename
+                        
+                        if source_path.exists():
+                            # Requested Change: Segment the stylized output
+                            logger.info(f"Segmenting stylized output {filename}...")
+                            try:
+                                stylized_seg_img = seg_engine.extract_silhouette(str(source_path))
+                                
+                                with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as style_tmp:
+                                    stylized_seg_img.save(style_tmp, format="PNG")
+                                    style_tmp_path = Path(style_tmp.name)
+                                
+                                style_id, saved_path = SessionManager.save_silhouette(style_tmp_path, input_id, f"style_{i}")
+                                style_tmp_path.unlink()
+                                
+                                stylized_resources.append(ImageResource(
+                                    id=style_id,
+                                    url=SessionManager.get_relative_url(saved_path)
+                                ))
+                            except Exception as e:
+                                logger.error(f"Failed to segment stylized output {filename}: {e}")
+                                # Fallback: Save original unsegmented if segmentation fails? 
+                                # Or skip? Let's skip to avoid confusion.
+                                pass
+                else:
+                    logger.warning(f"ComfyUI job failed or returned no images: {result.error}")
+
+            except Exception as e:
+                logger.error(f"ComfyUI generation failed: {e}")
+                # Continue to return original even if Comfy fails
 
         # Cleanup input temp
         input_path.unlink()
