@@ -1,0 +1,18 @@
+name: soi_simple
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+    - fastapi
+    - uvicorn
+    - python-multipart
+    - pydantic
+    - requests
+    - pillow
+    - numpy
+    - pandas
+    - opencv-python-headless
+    - rembg[gpu]
+    - mediapipe

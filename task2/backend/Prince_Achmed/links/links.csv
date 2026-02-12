@@ -1,0 +1,16 @@
+name,pt1_idx,pt2_idx,pt1_x,pt1_y,pt2_x,pt2_y
+torso,1,8,72,21,41,130
+right_upper_arm,2,3,84,16,14,88
+right_forearm,3,4,12,18,38,88
+left_upper_arm,5,6,28,17,14,110
+left_forearm,6,7,14,9,38,85
+right_thigh,9,10,22,17,55,158
+right_calf,10,11,26,14,39,135
+left_thigh,12,13,26,16,19,149
+left_calf,13,14,91,12,13,119
+right_foot,11,22,22,26,58,33
+left_foot,14,19,22,18,55,45
+neck,1,-1,30,43,38,5
+head,-1,0,131,70,159,67
+left_hand,-1,-1,6,5,22,24
+right_hand,-1,-1,6,5,22,24
