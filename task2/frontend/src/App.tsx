@@ -8,6 +8,7 @@ import CameraPage from "./pages/CameraPage";
 import SilhouettePage from "./pages/SilhouettePage";
 import SelectionPage from "./pages/SelectionPage";
 import ConfirmationPage from "./pages/ConfirmationPage";
+import TestInputPage from "./pages/TestInputPage";
 import PrivacyFooter from "./components/PrivacyFooter";
 import NotFound from "./pages/NotFound";
 
@@ -22,7 +23,8 @@ const AppContent = () => {
     <>
       <Routes>
         <Route path="/" element={<StartPage />} />
-        <Route path="/camera" element={<CameraPage />} />
+        {/* <Route path="/camera" element={<CameraPage />} /> */}
+        <Route path="/test-input" element={<TestInputPage />} />
         <Route path="/silhouette" element={<SilhouettePage />} />
         <Route path="/selection" element={<SelectionPage />} />
         <Route path="/confirmation" element={<ConfirmationPage />} />

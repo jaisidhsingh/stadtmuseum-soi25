@@ -1,23 +1,49 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Check } from "lucide-react";
 
-// Mock data for silhouettes
-const SILHOUETTES = [
-  { id: "s1", name: "Classic", color: "#1a1a2e" },
-];
+type Background = {
+  id: string;
+  title: string;
+  url: string;
+};
 
-const GALLERY_ITEMS = Array.from({ length: 12 }).map((_, i) => ({
-  id: `g${i + 1}`,
-  title: `Gallery Item ${i + 1}`,
-  color: `hsl(${Math.random() * 360}, 70%, 80%)`, // Placeholder colors
-}));
+type SilhouetteData = {
+  id: string;
+  url: string;
+};
 
 const SelectionPage = () => {
   const navigate = useNavigate();
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
+  const [backgrounds, setBackgrounds] = useState<Background[]>([]);
+  const [silhouette, setSilhouette] = useState<SilhouetteData | null>(null);
+
+  useEffect(() => {
+    // Load silhouette from session storage
+    const storedSil = sessionStorage.getItem("silhouetteData");
+    if (storedSil) {
+      setSilhouette(JSON.parse(storedSil));
+    } else {
+      navigate("/camera");
+    }
+
+    // Fetch backgrounds
+    const fetchBackgrounds = async () => {
+      try {
+        const res = await fetch("http://localhost:8000/backgrounds");
+        if (res.ok) {
+          const data = await res.json();
+          setBackgrounds(data);
+        }
+      } catch (e) {
+        console.error("Failed to fetch backgrounds", e);
+      }
+    };
+    fetchBackgrounds();
+  }, [navigate]);
 
   const toggleSelection = (id: string) => {
     setSelectedCards((prev) =>
@@ -28,10 +54,10 @@ const SelectionPage = () => {
   };
 
   const handleProceed = () => {
-    const selectedItems = GALLERY_ITEMS.filter((item) =>
-      selectedCards.includes(item.id)
-    );
-    sessionStorage.setItem("selectedGalleryItems", JSON.stringify(selectedItems));
+    sessionStorage.setItem("selectedBackgroundIds", JSON.stringify(selectedCards));
+    // Also save the background objects for easy reading on the next page
+    const selectedBackgrounds = backgrounds.filter(bg => selectedCards.includes(bg.id));
+    sessionStorage.setItem("selectedBackgrounds", JSON.stringify(selectedBackgrounds));
     navigate("/confirmation");
   };
 
@@ -40,12 +66,17 @@ const SelectionPage = () => {
       {/* Silhouette (single) preview - Left Panel */}
       <div className="w-64 flex-shrink-0 border-r pr-6 mr-6 flex flex-col">
         <h3 className="text-xl font-semibold mb-4">Silhouette</h3>
-        <Card className="p-4">
-          <div
-            className="w-full aspect-square rounded"
-            style={{ backgroundColor: SILHOUETTES[0].color }}
-          />
-          <p className="text-lg text-center mt-2 font-medium">{SILHOUETTES[0].name}</p>
+        <Card className="p-4 flex flex-col items-center">
+          {silhouette ? (
+            <img
+              src={`http://localhost:8000${silhouette.url}`}
+              alt="Silhouette"
+              className="w-full h-auto rounded"
+            />
+          ) : (
+            <div className="w-full aspect-square rounded bg-muted animate-pulse" />
+          )}
+          <p className="text-lg text-center mt-2 font-medium">Your Outline</p>
         </Card>
       </div>
 
@@ -55,7 +86,7 @@ const SelectionPage = () => {
         <div className="flex-1 overflow-y-auto pb-28 p-3">
           <h3 className="text-xl font-semibold mb-4">Gallery</h3>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {GALLERY_ITEMS.map((item) => (
+            {backgrounds.map((item) => (
               <Card
                 key={item.id}
                 className={`cursor-pointer transition-all hover:shadow-md relative overflow-hidden group ${selectedCards.includes(item.id) ? "ring-2 ring-primary" : ""
@@ -63,8 +94,8 @@ const SelectionPage = () => {
                 onClick={() => toggleSelection(item.id)}
               >
                 <div
-                  className="aspect-[4/3] w-full"
-                  style={{ backgroundColor: item.color }}
+                  className="aspect-[4/3] w-full bg-muted bg-cover bg-center"
+                  style={{ backgroundImage: `url(http://localhost:8000${item.url})` }}
                 />
                 <div className="p-3">
                   <p className="font-medium truncate">{item.title}</p>
@@ -88,6 +119,7 @@ const SelectionPage = () => {
             size="lg"
             className="text-lg px-8 py-6"
             onClick={handleProceed}
+            disabled={selectedCards.length === 0}
           >
             Next
           </Button>

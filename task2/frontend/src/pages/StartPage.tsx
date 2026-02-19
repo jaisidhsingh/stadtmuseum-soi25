@@ -100,7 +100,7 @@ const StartPage = () => {
             <Button
               size="lg"
               disabled={!canStart}
-              onClick={() => navigate("/camera")}
+              onClick={() => navigate("/test-input")}
               className="text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all"
             >
               Start Experience

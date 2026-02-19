@@ -20,7 +20,7 @@ from pydantic import BaseModel
 
 # Import our modules
 from segmentation_engine import SegmentationEngine
-from data_manager import SessionManager, BACKGROUNDS
+from data_manager import SessionManager, BACKGROUNDS, BACKGROUNDS_DIR
 from email_service import EmailService
 from classical_warping import ClassicalWarpingEngine, get_default_engine
 from pose_estimator import PoseEstimator, get_pose_estimator
@@ -45,6 +45,10 @@ app.add_middleware(
 OUTPUTS_DIR = Path(__file__).parent / "outputs"
 OUTPUTS_DIR.mkdir(exist_ok=True)
 app.mount("/outputs", StaticFiles(directory=str(OUTPUTS_DIR)), name="outputs")
+
+# Mount backgrounds
+BACKGROUNDS_DIR.mkdir(exist_ok=True)
+app.mount("/backgrounds", StaticFiles(directory=str(BACKGROUNDS_DIR)), name="backgrounds")
 
 # Initialize Engines
 seg_engine = SegmentationEngine()
@@ -96,6 +100,20 @@ class ClearResponse(BaseModel):
 @app.get("/")
 async def root():
     return FileResponse(Path(__file__).parent / "test.html")
+
+@app.get("/backgrounds")
+async def get_backgrounds():
+    """
+    Returns a list of available backgrounds.
+    """
+    bg_list = []
+    for bg_id, bg_info in BACKGROUNDS.items():
+        bg_list.append({
+            "id": bg_info["id"],
+            "title": bg_info["filename"].split(".")[0].capitalize(),
+            "url": f"/backgrounds/{bg_info['filename']}"
+        })
+    return bg_list
 
 @app.post("/segment", response_model=SegmentationResponse)
 async def segment_image(
