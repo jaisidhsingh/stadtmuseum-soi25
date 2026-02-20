@@ -144,7 +144,7 @@ class SessionManager:
         """Converts an absolute path to a URL path relative to /outputs."""
         try:
             rel = path.relative_to(OUTPUTS_DIR)
-            return f"/outputs/{rel}"
+            return f"/outputs/{rel.as_posix()}"
         except ValueError:
             return ""
 

@@ -3,7 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { X, ZoomIn } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -26,6 +31,7 @@ const ConfirmationPage = () => {
     const silhouetteDataStr = sessionStorage.getItem("silhouetteData");
     const bgIdsStr = sessionStorage.getItem("selectedBackgroundIds");
     const bgObjectsStr = sessionStorage.getItem("selectedBackgrounds");
+    const preCompositesStr = sessionStorage.getItem("preComposites");
 
     if (!silhouetteDataStr || !bgIdsStr) {
       navigate("/selection");
@@ -35,27 +41,43 @@ const ConfirmationPage = () => {
     const silhouette = JSON.parse(silhouetteDataStr);
     const bgIds: string[] = JSON.parse(bgIdsStr);
     const bgObjects = bgObjectsStr ? JSON.parse(bgObjectsStr) : [];
+    const preComposites: Record<string, string> = preCompositesStr
+      ? JSON.parse(preCompositesStr)
+      : {};
 
     const generateComposites = async () => {
       setIsProcessing(true);
       try {
         const promises = bgIds.map(async (bgId) => {
+          const bgObj = bgObjects.find((b: { id: string }) => b.id === bgId);
+          const title = bgObj ? bgObj.title : `Background ${bgId}`;
+
+          // Use pre-composited result from SelectionPage if available
+          if (preComposites[bgId]) {
+            return {
+              id: `pre_${bgId}`,
+              originalBgId: bgId,
+              title,
+              url: preComposites[bgId],
+            } as CompositeItem;
+          }
+
           const res = await fetch("http://localhost:8000/composite", {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ silhouette_id: silhouette.id, background_id: bgId })
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              silhouette_id: silhouette.id,
+              background_id: bgId,
+            }),
           });
           if (!res.ok) throw new Error("Composition failed");
           const data = await res.json();
 
-          const bgObj = bgObjects.find((b: { id: string }) => b.id === bgId);
-          const title = bgObj ? bgObj.title : `Background ${bgId}`;
-
           return {
             id: data.result.id,
             originalBgId: bgId,
-            title: title,
-            url: `http://localhost:8000${data.result.url}`
+            title,
+            url: `http://localhost:8000${data.result.url}`,
           } as CompositeItem;
         });
 
@@ -102,9 +124,12 @@ const ConfirmationPage = () => {
 
     try {
       const res = await fetch("http://localhost:8000/send-email", {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email, ids: compositedItems.map(item => item.id) })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email,
+          ids: compositedItems.map((item) => item.id),
+        }),
       });
 
       if (!res.ok) {
@@ -122,21 +147,29 @@ const ConfirmationPage = () => {
     }
   };
 
-  const handleSuccessClose = () => {
-    setShowSuccess(false);
+  const handleStartOver = async () => {
+    try {
+      await fetch("http://localhost:8000/clear", { method: "POST" });
+    } catch (e) {
+      console.error("Failed to clear backend session", e);
+    }
     sessionStorage.removeItem("selectedBackgroundIds");
     sessionStorage.removeItem("selectedBackgrounds");
+    sessionStorage.removeItem("preComposites");
     sessionStorage.removeItem("silhouetteData");
     sessionStorage.removeItem("capturedImage");
     sessionStorage.removeItem("silhouetteStyles");
     navigate("/");
   };
 
+  const handleSuccessClose = () => {
+    setShowSuccess(false);
+    handleStartOver();
+  };
+
   return (
     <div className="min-h-screen bg-background p-8">
-      <h1 className="text-2xl font-bold text-center mb-2">
-        Confirm Your Images
-      </h1>
+      <h1 className="text-2xl font-bold text-center mb-2">Confirm Your Images</h1>
       <p className="text-center text-muted-foreground mb-8">
         Review your composited images before sending
       </p>
@@ -144,7 +177,9 @@ const ConfirmationPage = () => {
       <div className="max-w-6xl mx-auto space-y-8">
         {isProcessing ? (
           <div className="text-center py-12">
-            <p className="text-muted-foreground text-lg animate-pulse">Generating your composited images...</p>
+            <p className="text-muted-foreground text-lg animate-pulse">
+              Generating your composited images...
+            </p>
           </div>
         ) : compositedItems.length === 0 ? (
           <div className="text-center py-12">
@@ -160,13 +195,18 @@ const ConfirmationPage = () => {
                 key={item.id}
                 className="relative group transition-all hover:scale-105"
               >
-                <div
-                  className="aspect-[4/3] rounded-t w-full bg-muted bg-cover bg-center"
-                  style={{ backgroundImage: `url(${item.url})` }}
-                />
+                <div className="aspect-[4/3] rounded-t w-full overflow-hidden bg-muted">
+                  <img
+                    src={item.url}
+                    alt={item.title}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
 
                 <div className="p-2 flex items-center justify-between">
-                  <span className="text-xs truncate font-medium">{item.title}</span>
+                  <span className="text-xs truncate font-medium">
+                    {item.title}
+                  </span>
                   <div className="flex gap-1">
                     <button
                       className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
@@ -199,8 +239,14 @@ const ConfirmationPage = () => {
               onChange={(e) => setEmail(e.target.value)}
               className="max-w-md"
             />
-            <Button onClick={handleSendEmail} disabled={compositedItems.length === 0}>
+            <Button
+              onClick={handleSendEmail}
+              disabled={compositedItems.length === 0}
+            >
               Send Selected Images to Email
+            </Button>
+            <Button variant="outline" onClick={handleStartOver}>
+              Start Over
             </Button>
             <span className="text-sm text-muted-foreground">
               {compositedItems.length} image(s) selected

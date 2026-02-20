@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 
 type Background = {
   id: string;
@@ -20,6 +20,9 @@ const SelectionPage = () => {
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [backgrounds, setBackgrounds] = useState<Background[]>([]);
   const [silhouette, setSilhouette] = useState<SilhouetteData | null>(null);
+  // composited URL keyed by background id
+  const [composites, setComposites] = useState<Record<string, string>>({});
+  const [compositing, setCompositing] = useState<string | null>(null); // bg id currently compositing
 
   useEffect(() => {
     // Load silhouette from session storage
@@ -47,17 +50,51 @@ const SelectionPage = () => {
 
   const toggleSelection = (id: string) => {
     setSelectedCards((prev) =>
-      prev.includes(id)
-        ? prev.filter((item) => item !== id)
-        : [...prev, id]
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
     );
   };
 
+  const handleApply = async (bgId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!silhouette || compositing) return;
+    setCompositing(bgId);
+    try {
+      const res = await fetch("http://localhost:8000/composite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          silhouette_id: silhouette.id,
+          background_id: bgId,
+        }),
+      });
+      if (!res.ok) throw new Error("Composite failed");
+      const data = await res.json();
+      setComposites((prev) => ({
+        ...prev,
+        [bgId]: `http://localhost:8000${data.result.url}`,
+      }));
+      // Auto-select when applied
+      setSelectedCards((prev) => (prev.includes(bgId) ? prev : [...prev, bgId]));
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setCompositing(null);
+    }
+  };
+
   const handleProceed = () => {
-    sessionStorage.setItem("selectedBackgroundIds", JSON.stringify(selectedCards));
-    // Also save the background objects for easy reading on the next page
-    const selectedBackgrounds = backgrounds.filter(bg => selectedCards.includes(bg.id));
-    sessionStorage.setItem("selectedBackgrounds", JSON.stringify(selectedBackgrounds));
+    sessionStorage.setItem(
+      "selectedBackgroundIds",
+      JSON.stringify(selectedCards),
+    );
+    const selectedBackgrounds = backgrounds.filter((bg) =>
+      selectedCards.includes(bg.id),
+    );
+    sessionStorage.setItem(
+      "selectedBackgrounds",
+      JSON.stringify(selectedBackgrounds),
+    );
+    sessionStorage.setItem("preComposites", JSON.stringify(composites));
     navigate("/confirmation");
   };
 
@@ -89,16 +126,34 @@ const SelectionPage = () => {
             {backgrounds.map((item) => (
               <Card
                 key={item.id}
-                className={`cursor-pointer transition-all hover:shadow-md relative overflow-hidden group ${selectedCards.includes(item.id) ? "ring-2 ring-primary" : ""
-                  }`}
+                className={`cursor-pointer transition-all hover:shadow-md relative overflow-hidden group ${
+                  selectedCards.includes(item.id) ? "ring-2 ring-primary" : ""
+                }`}
                 onClick={() => toggleSelection(item.id)}
               >
                 <div
                   className="aspect-[4/3] w-full bg-muted bg-cover bg-center"
-                  style={{ backgroundImage: `url(http://localhost:8000${item.url})` }}
+                  style={{
+                    backgroundImage: `url(${composites[item.id] ?? `http://localhost:8000${item.url}`})`,
+                  }}
                 />
-                <div className="p-3">
+                <div className="p-3 flex items-center justify-between gap-2">
                   <p className="font-medium truncate">{item.title}</p>
+                  <Button
+                    size="sm"
+                    variant="default"
+                    className="shrink-0 text-xs px-2 py-1 h-auto bg-blue-600 hover:bg-blue-700"
+                    disabled={compositing === item.id}
+                    onClick={(e) => handleApply(item.id, e)}
+                  >
+                    {compositing === item.id ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : composites[item.id] ? (
+                      "Re-apply"
+                    ) : (
+                      "Apply"
+                    )}
+                  </Button>
                 </div>
                 {selectedCards.includes(item.id) && (
                   <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1 shadow-sm">
@@ -130,4 +185,3 @@ const SelectionPage = () => {
 };
 
 export default SelectionPage;
-
