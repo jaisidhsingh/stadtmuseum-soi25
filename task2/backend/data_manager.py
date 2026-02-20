@@ -23,15 +23,17 @@ BACKGROUNDS: Dict[str, Dict] = {
         "id": "bg1",
         "filename": "bg1.jpg",
         "positions": [
-            [256, 700],
-            [720, 1004]
+            # [256, 700],
+            # [720, 1004]
+            [700, 1100]
         ],
-        "scale": 0.2,
+        "scale": 1.25,
     },
     "bg2": {
         "id": "bg2",
         "filename": "bg2.jpg", # Reusing same file for now as placebo
         "positions": [
+            # [350, 300]
             [350, 300]
         ],
         "scale": 0.1
@@ -40,9 +42,26 @@ BACKGROUNDS: Dict[str, Dict] = {
         "id": "bg3",
         "filename": "bg3.jpg",
         "positions": [
+            # [200, 380]
             [200, 380]
         ],
         "scale": 0.2
+    },
+    "bg4": {
+        "id": "bg4",
+        "filename": "bg4.jpg",
+        "positions": [
+            [440, 430]
+        ],
+        "scale": 0.22
+    },
+    "bg5": {
+        "id": "bg5",
+        "filename": "bg5.jpg",
+        "positions": [
+            [440, 430]
+        ],
+        "scale": 0.22
     }
 }
 

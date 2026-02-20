@@ -2,7 +2,7 @@ import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import dummyImage from "../assets/dummy.jpeg";
+import dummyImage from "../assets/dummy_2.jpg";
 
 const TestInputPage = () => {
     const navigate = useNavigate();
