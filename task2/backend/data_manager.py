@@ -27,7 +27,8 @@ BACKGROUNDS: Dict[str, Dict] = {
             # [720, 1004]
             [700, 1100]
         ],
-        "scale": 1.25,
+        "max_w": 400,
+        "max_h": 800,
     },
     "bg2": {
         "id": "bg2",
@@ -36,7 +37,8 @@ BACKGROUNDS: Dict[str, Dict] = {
             # [350, 300]
             [350, 300]
         ],
-        "scale": 0.1
+        "max_w": 100,
+        "max_h": 200,
     },
     "bg3": {
         "id": "bg3",
@@ -45,7 +47,8 @@ BACKGROUNDS: Dict[str, Dict] = {
             # [200, 380]
             [200, 380]
         ],
-        "scale": 0.2
+        "max_w": 200,
+        "max_h": 400,
     },
     "bg4": {
         "id": "bg4",
@@ -53,15 +56,17 @@ BACKGROUNDS: Dict[str, Dict] = {
         "positions": [
             [440, 430]
         ],
-        "scale": 0.22
+        "max_w": 220,
+        "max_h": 440,
     },
     "bg5": {
         "id": "bg5",
         "filename": "bg5.jpg",
         "positions": [
-            [440, 430]
+            [1120, 1000]
         ],
-        "scale": 0.22
+        "max_w": 220,
+        "max_h": 440,
     }
 }
 
@@ -155,7 +160,8 @@ class SessionManager:
         return {
             "path": path,
             "positions": bg["positions"],
-            "scale": bg.get("scale", 1.0)
+            "max_w": bg.get("max_w"),
+            "max_h": bg.get("max_h"),
         }
 
     @staticmethod

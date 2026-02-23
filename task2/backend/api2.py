@@ -339,7 +339,8 @@ async def compose_image(request: CompositeRequest):
 
         bg_path = bg_info["path"]
         positions = bg_info["positions"]
-        scale = bg_info.get("scale", 1.0)
+        max_w = bg_info.get("max_w")
+        max_h = bg_info.get("max_h")
 
         if not positions:
             raise HTTPException(status_code=500, detail="Background has no valid positions")
@@ -350,13 +351,22 @@ async def compose_image(request: CompositeRequest):
         background = Image.open(bg_path).convert("RGBA")
         silhouette = Image.open(sil_path).convert("RGBA")
 
-        if scale != 1.0:
-            new_width = int(silhouette.width * scale)
-            new_height = int(silhouette.height * scale)
+        if max_w or max_h:
+            orig_w, orig_h = silhouette.size
+            scale = 1.0
+            if max_w and max_h:
+                scale = min(max_w / orig_w, max_h / orig_h)
+            elif max_w:
+                scale = max_w / orig_w
+            elif max_h:
+                scale = max_h / orig_h
+            scale = min(scale, 1.0)  # never upscale
+            new_width = max(1, int(orig_w * scale))
+            new_height = max(1, int(orig_h * scale))
             silhouette = silhouette.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
         paste_x = x - (silhouette.width // 2)
-        paste_y = y - (silhouette.height // 2)
+        paste_y = y - (silhouette.height)
 
         sil_layer = Image.new("RGBA", background.size, (0, 0, 0, 0))
         sil_layer.paste(silhouette, (paste_x, paste_y))
@@ -412,4 +422,4 @@ async def clear_data():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("api2:app", host="0.0.0.0", port=8000, reload=True)
