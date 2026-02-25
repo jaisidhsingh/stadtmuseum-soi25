@@ -13,9 +13,8 @@ type ImageResource = {
 const SilhouettePage = () => {
   const navigate = useNavigate();
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [originalResource, setOriginalResource] = useState<ImageResource | null>(
-    null,
-  );
+  const [originalResource, setOriginalResource] =
+    useState<ImageResource | null>(null);
   const [warpedResource, setWarpedResource] = useState<ImageResource | null>(
     null,
   );
@@ -25,7 +24,7 @@ const SilhouettePage = () => {
   const [styles, setStyles] = useState({
     arms: false,
     legs: false,
-    head: false,
+    // head: false,
     feet: false,
   });
 
@@ -35,7 +34,7 @@ const SilhouettePage = () => {
   const PART_EXPANSION: Record<string, string[]> = {
     arms: ["arms", "hands"],
     legs: ["legs", "torso"],
-    head: ["head", "neck"],
+    // head: ["head", "neck"],
     feet: ["feet"],
   };
 
@@ -208,7 +207,7 @@ const SilhouettePage = () => {
           <h2 className="text-2xl font-bold mb-6 text-center">Add Style</h2>
 
           <div className="space-y-6 mb-8">
-            {(["arms", "legs", "head", "feet"] as const).map((part) => (
+            {(["arms", "legs", "feet"] as const).map((part) => (
               <div
                 key={part}
                 className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
@@ -227,9 +226,9 @@ const SilhouettePage = () => {
                 >
                   {
                     {
-                      arms: "Arms & Hands",
+                      arms: "Arms",
                       legs: "Legs",
-                      head: "Head & Neck",
+                      // head: "Head & Neck",
                       feet: "Feet",
                     }[part]
                   }

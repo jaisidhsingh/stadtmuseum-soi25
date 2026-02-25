@@ -1,8 +1,8 @@
+import logging
 import shutil
 import uuid
-import logging
 from pathlib import Path
-from typing import Optional, Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 # Configuration
 SESSION_DIR_NAME = "session_data"
@@ -17,58 +17,45 @@ logger = logging.getLogger("DataManager")
 # Backgrounds DB (Hardcoded for now)
 # We expect backgrounds to be in soiBackend/backgrounds/
 BACKGROUNDS_DIR = BASE_DIR / "backgrounds"
-
+I = 1
 BACKGROUNDS: Dict[str, Dict] = {
     "bg1": {
         "id": "bg1",
         "filename": "bg1.jpg",
-        "positions": [
-            # [256, 700],
-            # [720, 1004]
-            [700, 1100]
-        ],
-        "max_w": 400,
-        "max_h": 800,
+        "positions": [[720, 1440]],
+        "max_w": 500 // I,
+        "max_h": 1000 // I,
     },
     "bg2": {
         "id": "bg2",
-        "filename": "bg2.jpg", # Reusing same file for now as placebo
-        "positions": [
-            # [350, 300]
-            [350, 300]
-        ],
-        "max_w": 100,
-        "max_h": 200,
+        "filename": "bg2.jpg",  # Reusing same file for now as placebo
+        "positions": [[480, 690]],
+        "max_w": 280 // I,
+        "max_h": 560 // I,
     },
     "bg3": {
         "id": "bg3",
         "filename": "bg3.jpg",
-        "positions": [
-            # [200, 380]
-            [200, 380]
-        ],
-        "max_w": 200,
-        "max_h": 400,
+        "positions": [[560, 590]],
+        "max_w": 180 // I,
+        "max_h": 360 // I,
     },
     "bg4": {
         "id": "bg4",
         "filename": "bg4.jpg",
-        "positions": [
-            [440, 430]
-        ],
-        "max_w": 220,
-        "max_h": 440,
+        "positions": [[920, 600]],
+        "max_w": 100 // I,
+        "max_h": 200 // I,
     },
     "bg5": {
         "id": "bg5",
         "filename": "bg5.jpg",
-        "positions": [
-            [1120, 1000]
-        ],
-        "max_w": 220,
-        "max_h": 440,
-    }
+        "positions": [[1120, 1000]],
+        "max_w": 220 // I,
+        "max_h": 440 // I,
+    },
 }
+
 
 class SessionManager:
     """
@@ -111,7 +98,9 @@ class SessionManager:
         return image_id, dest_path
 
     @staticmethod
-    def save_silhouette(image_path: Path, source_id: str, label: str) -> Tuple[str, Path]:
+    def save_silhouette(
+        image_path: Path, source_id: str, label: str
+    ) -> Tuple[str, Path]:
         """
         Saves a generated silhouette.
         Returns: (silhouette_id, path_to_saved_image)
@@ -123,7 +112,7 @@ class SessionManager:
         dest_path = SESSION_DIR / "silhouettes" / filename
         shutil.copy2(image_path, dest_path)
         return sil_id, dest_path
-    
+
     @staticmethod
     def save_composition(image_path: Path) -> Tuple[str, Path]:
         """
@@ -151,12 +140,12 @@ class SessionManager:
         bg = BACKGROUNDS.get(bg_id)
         if not bg:
             return None
-        
+
         path = BACKGROUNDS_DIR / bg["filename"]
         if not path.exists():
             logger.warning(f"Background file not found: {path}")
             return None
-            
+
         return {
             "path": path,
             "positions": bg["positions"],
@@ -180,7 +169,7 @@ class SessionManager:
         """
         if not SESSION_DIR.exists():
             return None
-            
+
         # Search all subfolders
         for folder in ["inputs", "silhouettes", "compositions"]:
             target_dir = SESSION_DIR / folder
@@ -190,6 +179,7 @@ class SessionManager:
                 if match:
                     return match[0]
         return None
+
 
 # Initialize directories on module load (or first use)
 SessionManager._ensure_dirs()
