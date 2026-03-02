@@ -11,6 +11,8 @@ from typing import List, Optional
 import time
 import logging
 from PIL import Image
+import numpy as np
+import cv2
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Body
 from fastapi.staticfiles import StaticFiles
@@ -24,6 +26,8 @@ from data_manager import SessionManager, BACKGROUNDS, BACKGROUNDS_DIR
 from email_service import EmailService
 from classical_warping import ClassicalWarpingEngine, get_default_engine
 from pose_estimator import PoseEstimator, get_pose_estimator
+from body_part_segmentation import BodyPartSegmenter
+from image_utils import crop_to_content, tint_silhouette
 import comfyFunctions
 
 # Logging
@@ -66,6 +70,17 @@ def get_classical_engines():
     if classical_warper is None:
         classical_warper = get_default_engine()
     return pose_estimator, classical_warper
+
+# Lazy-initialized body-part segmenter
+_body_part_segmenter = None
+
+def get_body_part_segmenter() -> BodyPartSegmenter:
+    """Lazy-initialize the body-part segmentation engine."""
+    global _body_part_segmenter
+    if _body_part_segmenter is None:
+        logger.info("Initializing body-part segmenter...")
+        _body_part_segmenter = BodyPartSegmenter()
+    return _body_part_segmenter
 
 # --- Data Models ---
 
@@ -144,9 +159,11 @@ async def segment_image(
         logger.info("Extracting original silhouette...")
         sil_image = seg_engine.extract_silhouette(str(saved_input_path))
         
-        # Save original silhouette
+        # Save cropped version for display; keep uncropped for warping base
+        sil_image_cropped = crop_to_content(sil_image)
+
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as sil_tmp:
-            sil_image.save(sil_tmp, format="PNG")
+            sil_image_cropped.save(sil_tmp, format="PNG")
             sil_tmp_path = Path(sil_tmp.name)
             
         orig_sil_id, orig_sil_path = SessionManager.save_silhouette(sil_tmp_path, input_id, "orig")
@@ -188,24 +205,44 @@ async def segment_image(
                     parts_list = None
                     if parts_to_warp:
                         parts_list = [p.strip() for p in parts_to_warp.split(",")]
-                    
+                        # If the selection covers every template part, treat as full warp
+                        from classical_warping import expand_parts_list as _expand
+                        if set(_expand(parts_list)) >= set(cw.links_dict.keys()):
+                            logger.info("All template parts selected — using full-warp (transparent canvas).")
+                            parts_list = None
+
                     people = pose_result.get("people", [])
-                    
+
                     # Create base transparent canvas
                     canvas_w = pose_result.get("canvas_width", 1024)
                     canvas_h = pose_result.get("canvas_height", 1024)
-                    
-                    # Create base canvas
-                    # If specific parts requested, start with original silhouette as base
+
+                    # Build canvas (replace all parts → transparent base;
+                    # partial warp → start from original silhouette with
+                    # warped body-part regions erased via semantic segmentation)
                     if parts_list:
-                        # Ensure sil_image is RGBA and matches size
-                        final_canvas = sil_image.convert("RGBA").resize((canvas_w, canvas_h))
+                        base_sil = sil_image.convert("RGBA").resize((canvas_w, canvas_h))
+                        try:
+                            bps = get_body_part_segmenter()
+                            original_photo = Image.open(str(saved_input_path)).convert("RGB")
+                            label_map = bps.segment(original_photo)
+
+                            from classical_warping import expand_parts_list
+                            expanded = expand_parts_list(parts_list)
+                            erasure_mask = BodyPartSegmenter.build_erasure_mask(label_map, expanded)
+
+                            final_canvas = BodyPartSegmenter.erase_parts_from_silhouette(
+                                base_sil, erasure_mask
+                            )
+                            logger.info(f"Erased {len(expanded)} body part region(s) from silhouette base.")
+                        except Exception as e:
+                            logger.warning(f"Body-part erasure failed, using un-erased silhouette: {e}")
+                            final_canvas = base_sil
                     else:
-                        # Otherwise start with transparent canvas (full replacement)
                         final_canvas = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
-                    
+
                     logger.info(f"Detected {len(people)} people. generating warped silhouettes...")
-                    
+
                     for person in people:
                         # Generate warped silhouette for this person
                         person_sil = classical_warper.generate_silhouette(
@@ -215,6 +252,9 @@ async def segment_image(
                         )
                         # Composite onto final canvas
                         final_canvas.alpha_composite(person_sil)
+
+                    # Crop warped result to content bounding box
+                    final_canvas = crop_to_content(final_canvas)
 
                     # Save result
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as warp_tmp:
@@ -283,7 +323,7 @@ async def segment_image(
                 # Continue to return original even if Comfy fails
 
         # Cleanup input temp
-        input_path.unlink()
+        input_path.unlink(missing_ok=True)
 
         return SegmentationResponse(
             original=orig_resource,
@@ -313,31 +353,43 @@ async def compose_image(request: CompositeRequest):
         
         bg_path = bg_info["path"]
         positions = bg_info["positions"]
-        scale = bg_info.get("scale", 1.0) # Default to 1.0 if not present
-        
+        max_w = bg_info.get("max_w")
+        max_h = bg_info.get("max_h")
+
         if not positions:
              raise HTTPException(status_code=500, detail="Background has no valid positions")
 
         # 3. Random Position
         pos = random.choice(positions)
         x, y = pos[0], pos[1]
-        
+
         # 4. Composite
-        # Using PIL
-        from PIL import Image
-        
         background = Image.open(bg_path).convert("RGBA")
         silhouette = Image.open(sil_path).convert("RGBA")
-        
-        # Apply scaling
-        if scale != 1.0:
-            new_width = int(silhouette.width * scale)
-            new_height = int(silhouette.height * scale)
+
+        # Tint silhouette to match background's dark colour
+        silhouette_color = bg_info.get("silhouette_color")
+        if silhouette_color and silhouette_color != (0, 0, 0):
+            silhouette = tint_silhouette(silhouette, silhouette_color)
+
+        # Apply max_w / max_h scaling (never upscale)
+        if max_w or max_h:
+            orig_w, orig_h = silhouette.size
+            scale = 1.0
+            if max_w and max_h:
+                scale = min(max_w / orig_w, max_h / orig_h)
+            elif max_w:
+                scale = max_w / orig_w
+            elif max_h:
+                scale = max_h / orig_h
+            scale = min(scale, 1.0)  # never upscale
+            new_width = max(1, int(orig_w * scale))
+            new_height = max(1, int(orig_h * scale))
             silhouette = silhouette.resize((new_width, new_height), Image.Resampling.LANCZOS)
-        
-        # Paste centered at x,y
+
+        # Paste with bottom-center alignment at (x, y)
         paste_x = x - (silhouette.width // 2)
-        paste_y = y - (silhouette.height // 2)
+        paste_y = y - (silhouette.height)
         
         # Create a new layer for silhouette matching background size
         sil_layer = Image.new("RGBA", background.size, (0,0,0,0))

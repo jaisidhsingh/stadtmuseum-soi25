@@ -18,6 +18,10 @@ logger = logging.getLogger("DataManager")
 # We expect backgrounds to be in soiBackend/backgrounds/
 BACKGROUNDS_DIR = BASE_DIR / "backgrounds"
 I = 1
+
+# Cache for auto-sampled silhouette colours  (bg_id -> (R, G, B))
+_sampled_color_cache: Dict[str, tuple] = {}
+
 BACKGROUNDS: Dict[str, Dict] = {
     "bg1": {
         "id": "bg1",
@@ -136,7 +140,7 @@ class SessionManager:
 
     @staticmethod
     def get_background_info(bg_id: str) -> Optional[Dict]:
-        """Returns background info including absolute path."""
+        """Returns background info including absolute path and silhouette colour."""
         bg = BACKGROUNDS.get(bg_id)
         if not bg:
             return None
@@ -146,11 +150,23 @@ class SessionManager:
             logger.warning(f"Background file not found: {path}")
             return None
 
+        # Determine silhouette colour: manual override > cached > fresh auto-sample
+        silhouette_color = bg.get("silhouette_color")
+        if silhouette_color is None:
+            if bg_id in _sampled_color_cache:
+                silhouette_color = _sampled_color_cache[bg_id]
+            else:
+                from image_utils import sample_silhouette_color
+                silhouette_color = sample_silhouette_color(str(path))
+                _sampled_color_cache[bg_id] = silhouette_color
+                logger.info(f"Auto-sampled silhouette colour for {bg_id}: {silhouette_color}")
+
         return {
             "path": path,
             "positions": bg["positions"],
             "max_w": bg.get("max_w"),
             "max_h": bg.get("max_h"),
+            "silhouette_color": silhouette_color,
         }
 
     @staticmethod

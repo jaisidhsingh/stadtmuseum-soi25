@@ -16,3 +16,6 @@ dependencies:
     - opencv-python-headless
     - rembg[gpu]
     - mediapipe
+    - torch
+    - torchvision
+    - transformers
