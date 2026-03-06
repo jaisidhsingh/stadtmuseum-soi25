@@ -66,7 +66,28 @@ def parse_keypoints(keypoints, left_hand_keypoints, right_hand_keypoints, links_
             if head_middle_keypoint is None:
                 head_middle_keypoint = get_head_middle_keypoint(keypoints)
             dst_pt1 = head_middle_keypoint
-            dst_pt2 = keypoints[link_data["pt2_idx"]][:2]
+
+            r_ear_keypoint = keypoints[17]
+            l_ear_keypoint = keypoints[18]
+            nose_keypoint = keypoints[0]
+
+            # If nose visible, person not facing away from the camera
+            if nose_keypoint[2] != 0:
+                # If only one ear is visible, use nose keypoint as dst_pt2
+                if r_ear_keypoint[2] == 0 or l_ear_keypoint[2] == 0:
+                    dst_pt2 = keypoints[link_data["pt2_idx"]][:2]
+                # Otherwise, use the ear keypoint in the direction the head is facing
+                else:
+                    head_direction = get_head_direction(keypoints)
+                    if head_direction == "r":
+                        dst_pt2 = l_ear_keypoint[:2]
+                    else:
+                        dst_pt2 = r_ear_keypoint[:2]
+            # TODO Implement logic for when the person is facing away from the camera
+            # Otherwise, person is facing away from the camera, defaulting to right ear keypoint
+            else:
+                dst_pt2 = r_ear_keypoint[:2]
+
         elif link_name == "right_hand":
             dst_pt1 = right_hand_keypoints[0][:2]
             dst_pt2 = get_hand_middle_keypoint(right_hand_keypoints)
@@ -112,6 +133,10 @@ def parse_keypoints(keypoints, left_hand_keypoints, right_hand_keypoints, links_
 
 
 def get_head_direction(keypoints):
+    # TODO Implement logic for when the person is facing away from the camera
+    if keypoints[0][2] == 0:
+        return "r"
+
     r_ear_keypoint = keypoints[17]
     l_ear_keypoint = keypoints[18]
     nose_keypoint = keypoints[0][:2]
