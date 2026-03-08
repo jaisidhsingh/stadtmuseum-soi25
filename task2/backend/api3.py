@@ -518,11 +518,25 @@ async def get_characters():
 @app.get("/backgrounds")
 async def get_backgrounds():
     bg_list = []
-    for bg_id, bg_info in BACKGROUNDS.items():
+    for dict_key, bg_info in BACKGROUNDS.items():
+        # Read bg dimensions
+        w, h = 1920, 1080
+        try:
+            bg_path = BACKGROUNDS_DIR / bg_info["filename"]
+            with Image.open(bg_path) as img:
+                w, h = img.size
+        except Exception as e:
+            logger.warning(f"Could not read size of {bg_info['filename']}: {e}")
+            
         bg_list.append({
-            "id": bg_info["id"],
+            "id": dict_key,  # Use dictionary key directly so bg2..bg21 are unique
             "title": bg_info["filename"].split(".")[0].capitalize(),
-            "url": f"/backgrounds/{bg_info['filename']}"
+            "url": f"/backgrounds/{bg_info['filename']}",
+            "positions": bg_info.get("positions", [[w//2, h]]),
+            "max_w": bg_info.get("max_w", w),
+            "max_h": bg_info.get("max_h", h),
+            "bg_w": w,
+            "bg_h": h
         })
     return bg_list
 

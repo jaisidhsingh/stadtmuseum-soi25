@@ -7,6 +7,11 @@ type Background = {
   id: string;
   title: string;
   url: string;
+  positions?: [number, number][];
+  max_w?: number;
+  max_h?: number;
+  bg_w?: number;
+  bg_h?: number;
 };
 
 type SilhouetteData = {
@@ -104,48 +109,76 @@ const SelectionPage = () => {
       </div>
 
       {/* Large Main Preview (Top Center) */}
-      <div className="flex-1 min-h-0 flex items-center justify-center mb-6 relative z-10">
+      <div className="flex-1 min-h-0 flex items-center justify-center mb-6 relative z-10 w-full px-4">
         {currentPreviewBg && silhouette ? (
           <div
             className={`
-              relative aspect-[4/3] w-full max-w-5xl max-h-full rounded-2xl overflow-hidden shadow-2xl bg-muted transition-all border-4
-              ${isCurrentPreviewSelected ? 'border-primary ring-4 ring-primary/20 scale-[1.01]' : 'border-transparent'}
+              relative w-full max-w-5xl max-h-full flex items-center justify-center rounded-2xl p-0 transition-all
+              ${isCurrentPreviewSelected ? 'scale-[1.01]' : ''}
             `}
             onClick={() => toggleSelection(currentPreviewBg.id)}
           >
-            {/* Background Layer */}
-            <img
-              src={`http://localhost:8000${currentPreviewBg.url}`}
-              alt={currentPreviewBg.title}
-              className="absolute inset-0 w-full h-full object-cover"
-            />
-            {/* Silhouette Layer (Horizontally centered, bottom aligned via CSS to mimic backend /composite) */}
-            <img
-              src={`http://localhost:8000${silhouette.url}`}
-              alt="My Silhouette"
-              className="absolute bottom-0 left-1/2 -translate-x-1/2 w-auto h-auto max-h-[90%] max-w-[90%] object-contain object-bottom drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)] transition-all duration-500"
-              style={{ filter: tintFilters[currentPreviewBg.id] || "brightness(0.2)" }}
-            />
+            {/* The proportionate container ensuring math is accurate */}
+            <div
+              className={`relative h-full w-full max-h-[60vh] max-w-full rounded-xl overflow-hidden shadow-2xl bg-muted border-4 transition-all
+                ${isCurrentPreviewSelected ? 'border-primary ring-4 ring-primary/20' : 'border-transparent group-hover:border-primary/50'}
+              `}
+              style={{
+                aspectRatio: `${currentPreviewBg.bg_w || 1920} / ${currentPreviewBg.bg_h || 1080}`
+              }}
+            >
+              {/* Background Layer */}
+              <img
+                src={`http://localhost:8000${currentPreviewBg.url}`}
+                alt={currentPreviewBg.title}
+                className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+              />
 
-            {/* Selection Text overlay instructing to tap */}
-            {!isCurrentPreviewSelected && (
-              <div className="absolute inset-x-0 top-6 text-center opacity-0 hover:opacity-100 transition-opacity pointer-events-none">
-                <span className="bg-background/80 backdrop-blur px-6 py-2 rounded-full font-medium shadow-lg">
-                  Tap image to select for export
-                </span>
-              </div>
-            )}
+              {/* Silhouette Layer */}
+              {(() => {
+                const bw = currentPreviewBg.bg_w || 1920;
+                const bh = currentPreviewBg.bg_h || 1080;
+                const pos = currentPreviewBg.positions?.[0] || [bw / 2, bh];
+                const mw = currentPreviewBg.max_w;
+                const mh = currentPreviewBg.max_h;
 
-            {/* Radio / Checkmark overlay for selection state */}
-            {isCurrentPreviewSelected ? (
-              <div className="absolute top-4 right-4 bg-primary text-primary-foreground rounded-full p-2 shadow-xl animate-in zoom-in pointer-events-none">
-                <Check className="w-8 h-8" />
-              </div>
-            ) : (
-              <div className="absolute top-4 right-4 bg-black/40 text-white rounded-full p-2 shadow-xl hover:bg-black/60 transition-colors">
-                <Circle className="w-8 h-8" />
-              </div>
-            )}
+                return (
+                  <img
+                    src={`http://localhost:8000${silhouette.url}`}
+                    alt="My Silhouette"
+                    className="absolute object-contain object-bottom pointer-events-none transition-all duration-500"
+                    style={{
+                      left: `${(pos[0] / bw) * 100}%`,
+                      top: `${(pos[1] / bh) * 100}%`,
+                      transform: 'translate(-50%, -100%)',
+                      maxWidth: mw ? `${(mw / bw) * 100}%` : '100%',
+                      maxHeight: mh ? `${(mh / bh) * 100}%` : '100%',
+                      filter: tintFilters[currentPreviewBg.id] || "brightness(0.2)"
+                    }}
+                  />
+                );
+              })()}
+
+              {/* Selection Text overlay instructing to tap */}
+              {!isCurrentPreviewSelected && (
+                <div className="absolute inset-x-0 top-6 text-center opacity-0 hover:opacity-100 transition-opacity pointer-events-none">
+                  <span className="bg-background/80 backdrop-blur px-6 py-2 rounded-full font-medium shadow-lg">
+                    Tap image to select for export
+                  </span>
+                </div>
+              )}
+
+              {/* Radio / Checkmark overlay for selection state */}
+              {isCurrentPreviewSelected ? (
+                <div className="absolute top-4 right-4 bg-primary text-primary-foreground rounded-full p-2 shadow-xl animate-in zoom-in pointer-events-none">
+                  <Check className="w-8 h-8" />
+                </div>
+              ) : (
+                <div className="absolute top-4 right-4 bg-black/40 text-white rounded-full p-2 shadow-xl hover:bg-black/60 transition-colors">
+                  <Circle className="w-8 h-8" />
+                </div>
+              )}
+            </div>
           </div>
         ) : (
           <div className="w-full max-w-4xl aspect-[4/3] bg-muted/50 rounded-2xl animate-pulse flex items-center justify-center">
