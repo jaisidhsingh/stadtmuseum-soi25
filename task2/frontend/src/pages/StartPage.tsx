@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import topImage from "../assets/bg_start_page.jpg";
+import topImage from "../assets/bg_start_page_2.jpg";
 
 const StartPage = () => {
   const navigate = useNavigate();
@@ -19,7 +19,7 @@ const StartPage = () => {
         <img
           src={topImage}
           alt="Start Page Background"
-          className="w-full h-full object-cover absolute inset-0"
+          className="w-full h-full object-cover object-[center_30%] absolute inset-0"
         />
         {/* Optional overlay gradient if improved text readability is needed later, 
             though text is now in the bottom section */}

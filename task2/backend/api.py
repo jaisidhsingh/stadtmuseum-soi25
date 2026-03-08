@@ -229,7 +229,14 @@ async def segment_image(
 
                             from classical_warping import expand_parts_list
                             expanded = expand_parts_list(parts_list)
-                            erasure_mask = BodyPartSegmenter.build_erasure_mask(label_map, expanded)
+
+                            # Extract raw pose keypoints for geometric hand exclusion
+                            raw_kp = people[0].get("pose_keypoints_2d", []) if people else []
+                            pose_kp_arr = np.array(raw_kp).reshape((-1, 3)) if raw_kp else None
+
+                            erasure_mask = BodyPartSegmenter.build_erasure_mask(
+                                label_map, expanded, pose_keypoints=pose_kp_arr
+                            )
 
                             final_canvas = BodyPartSegmenter.erase_parts_from_silhouette(
                                 base_sil, erasure_mask

@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { X, ZoomIn } from "lucide-react";
+import { X, ZoomIn, ArrowLeft } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 type CompositeItem = {
@@ -168,13 +168,27 @@ const ConfirmationPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background p-8">
-      <h1 className="text-2xl font-bold text-center mb-2">Confirm Your Images</h1>
-      <p className="text-center text-muted-foreground mb-8">
-        Review your composited images before sending
-      </p>
+    <div className="min-h-screen bg-background relative flex flex-col p-4 md:p-8">
+      {/* Top Bar with Back Button */}
+      <div className="absolute top-4 left-4 md:top-8 md:left-8 z-20">
+        <Button
+          variant="outline"
+          size="lg"
+          className="h-14 px-6 text-lg rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2 bg-background/80 backdrop-blur-sm"
+          onClick={() => navigate("/selection")}
+        >
+          <ArrowLeft className="w-6 h-6" /> Back to Selection
+        </Button>
+      </div>
 
-      <div className="max-w-6xl mx-auto space-y-8">
+      <div className="text-center w-full pt-16 md:pt-4 mb-8">
+        <h1 className="text-4xl font-bold mb-2">Step 4: Confirm & Export</h1>
+        <p className="text-xl text-primary font-medium animate-pulse">
+          Review your composited images before sending them to your email.
+        </p>
+      </div>
+
+      <div className="max-w-7xl mx-auto w-full space-y-8 flex-1">
         {isProcessing ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground text-lg animate-pulse">
@@ -231,26 +245,33 @@ const ConfirmationPage = () => {
 
         {/* Email input and send button */}
         {!isProcessing && compositedItems.length > 0 && (
-          <div className="flex items-center gap-4 pt-8 border-t">
+          <div className="flex flex-col md:flex-row items-center justify-center gap-6 pt-12 border-t w-full max-w-4xl mx-auto">
+            <span className="text-lg text-muted-foreground font-semibold">
+              {compositedItems.length} image(s) selected
+            </span>
             <Input
               type="email"
-              placeholder="Enter your email"
+              placeholder="Enter your email address to receive photos"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="max-w-md"
+              className="max-w-md h-16 text-lg px-6 rounded-xl shadow-inner border-2"
             />
             <Button
+              size="lg"
+              className="h-16 px-10 text-xl font-bold rounded-xl shadow-lg hover:shadow-xl transition-all"
               onClick={handleSendEmail}
               disabled={compositedItems.length === 0}
             >
-              Send Selected Images to Email
+              Send {compositedItems.length} Photos
             </Button>
-            <Button variant="outline" onClick={handleStartOver}>
+            <Button
+              variant="outline"
+              size="lg"
+              className="h-16 px-8 text-xl rounded-xl ml-auto"
+              onClick={handleStartOver}
+            >
               Start Over
             </Button>
-            <span className="text-sm text-muted-foreground">
-              {compositedItems.length} image(s) selected
-            </span>
           </div>
         )}
       </div>

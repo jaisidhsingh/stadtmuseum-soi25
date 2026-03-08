@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Check, Loader2 } from "lucide-react";
+import { Check, ArrowLeft, Circle } from "lucide-react";
 
 type Background = {
   id: string;
@@ -19,10 +18,18 @@ const SelectionPage = () => {
   const navigate = useNavigate();
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [backgrounds, setBackgrounds] = useState<Background[]>([]);
+  const [previewBgId, setPreviewBgId] = useState<string | null>(null);
+
+  // CSS Filters matching data_manager.py silhouette_color overrides
+  const tintFilters: Record<string, string> = {
+    bg2: "brightness(0.2) sepia(0.8) hue-rotate(330deg) saturate(3)", // (30, 25, 20) brownish
+    bg3: "brightness(0.15) sepia(0.5) hue-rotate(180deg) saturate(2)", // (15, 25, 35) deeper blue-gray
+    bg4: "brightness(0.25) sepia(0.8) hue-rotate(340deg) saturate(4)", // (45, 30, 20) warm brown
+    bg5: "brightness(0.15) sepia(0.2) hue-rotate(240deg) saturate(1)", // (20, 20, 25) neutral dark
+  };
   const [silhouette, setSilhouette] = useState<SilhouetteData | null>(null);
-  // composited URL keyed by background id
-  const [composites, setComposites] = useState<Record<string, string>>({});
-  const [compositing, setCompositing] = useState<string | null>(null); // bg id currently compositing
+
+  // Track the currently previewed background in the large main view
 
   useEffect(() => {
     // Load silhouette from session storage
@@ -40,6 +47,9 @@ const SelectionPage = () => {
         if (res.ok) {
           const data = await res.json();
           setBackgrounds(data);
+          if (data.length > 0) {
+            setPreviewBgId(data[0].id); // Preview first background by default
+          }
         }
       } catch (e) {
         console.error("Failed to fetch backgrounds", e);
@@ -50,133 +60,171 @@ const SelectionPage = () => {
 
   const toggleSelection = (id: string) => {
     setSelectedCards((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
-  };
-
-  const handleApply = async (bgId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!silhouette || compositing) return;
-    setCompositing(bgId);
-    try {
-      const res = await fetch("http://localhost:8000/composite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          silhouette_id: silhouette.id,
-          background_id: bgId,
-        }),
-      });
-      if (!res.ok) throw new Error("Composite failed");
-      const data = await res.json();
-      setComposites((prev) => ({
-        ...prev,
-        [bgId]: `http://localhost:8000${data.result.url}`,
-      }));
-      // Auto-select when applied
-      setSelectedCards((prev) => (prev.includes(bgId) ? prev : [...prev, bgId]));
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setCompositing(null);
-    }
   };
 
   const handleProceed = () => {
-    sessionStorage.setItem(
-      "selectedBackgroundIds",
-      JSON.stringify(selectedCards),
-    );
+    sessionStorage.setItem("selectedBackgroundIds", JSON.stringify(selectedCards));
     const selectedBackgrounds = backgrounds.filter((bg) =>
-      selectedCards.includes(bg.id),
+      selectedCards.includes(bg.id)
     );
-    sessionStorage.setItem(
-      "selectedBackgrounds",
-      JSON.stringify(selectedBackgrounds),
-    );
-    sessionStorage.setItem("preComposites", JSON.stringify(composites));
+    sessionStorage.setItem("selectedBackgrounds", JSON.stringify(selectedBackgrounds));
+
+    // We intentionally ignore `preComposites` now, 
+    // relying on ConfirmationPage to do the actual backend heavy-lifting rendering.
+    sessionStorage.removeItem("preComposites");
+
     navigate("/confirmation");
   };
 
+  const currentPreviewBg = backgrounds.find(b => b.id === previewBgId);
+  const isCurrentPreviewSelected = previewBgId ? selectedCards.includes(previewBgId) : false;
+
   return (
-    <div className="h-screen bg-background p-4 flex">
-      {/* Silhouette (single) preview - Left Panel */}
-      <div className="w-64 flex-shrink-0 border-r pr-6 mr-6 flex flex-col">
-        <h3 className="text-xl font-semibold mb-4">Silhouette</h3>
-        <Card className="p-4 flex flex-col items-center">
-          {silhouette ? (
-            <img
-              src={`http://localhost:8000${silhouette.url}`}
-              alt="Silhouette"
-              className="w-full h-auto rounded"
-            />
-          ) : (
-            <div className="w-full aspect-square rounded bg-muted animate-pulse" />
-          )}
-          <p className="text-lg text-center mt-2 font-medium">Your Outline</p>
-        </Card>
+    <div className="h-screen bg-background relative flex flex-col p-4 md:p-8">
+      {/* Top Bar with Back Button */}
+      <div className="absolute top-4 left-4 md:top-8 md:left-8 z-20">
+        <Button
+          variant="outline"
+          size="lg"
+          className="h-14 px-6 text-lg rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2 bg-background/80 backdrop-blur-sm"
+          onClick={() => navigate("/silhouette")}
+        >
+          <ArrowLeft className="w-6 h-6" /> Back to Stylize
+        </Button>
       </div>
 
-      {/* Main content - Right Panel */}
-      <div className="flex-1 flex flex-col min-h-0 relative">
-        {/* Gallery Section - Scrollable Area */}
-        <div className="flex-1 overflow-y-auto pb-28 p-3">
-          <h3 className="text-xl font-semibold mb-4">Gallery</h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {backgrounds.map((item) => (
-              <Card
-                key={item.id}
-                className={`cursor-pointer transition-all hover:shadow-md relative overflow-hidden group ${
-                  selectedCards.includes(item.id) ? "ring-2 ring-primary" : ""
-                }`}
-                onClick={() => toggleSelection(item.id)}
+      {/* Header text */}
+      <div className="w-full text-center pt-16 md:pt-0 mb-4 z-10 shrink-0">
+        <h1 className="text-4xl font-bold text-center mb-4">Step 3: Choose Your Scenes</h1>
+        <p className="text-center text-xl text-primary font-medium mb-8 animate-pulse shadow-sm">
+          Tap the circle on a preview to select it for export. You can choose multiple!
+        </p>
+      </div>
+
+      {/* Large Main Preview (Top Center) */}
+      <div className="flex-1 min-h-0 flex items-center justify-center mb-6 relative z-10">
+        {currentPreviewBg && silhouette ? (
+          <div
+            className={`
+              relative aspect-[4/3] w-full max-w-5xl max-h-full rounded-2xl overflow-hidden shadow-2xl bg-muted transition-all border-4
+              ${isCurrentPreviewSelected ? 'border-primary ring-4 ring-primary/20 scale-[1.01]' : 'border-transparent'}
+            `}
+            onClick={() => toggleSelection(currentPreviewBg.id)}
+          >
+            {/* Background Layer */}
+            <img
+              src={`http://localhost:8000${currentPreviewBg.url}`}
+              alt={currentPreviewBg.title}
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+            {/* Silhouette Layer (Horizontally centered, bottom aligned via CSS to mimic backend /composite) */}
+            <img
+              src={`http://localhost:8000${silhouette.url}`}
+              alt="My Silhouette"
+              className="absolute bottom-0 left-1/2 -translate-x-1/2 w-auto h-auto max-h-[90%] max-w-[90%] object-contain object-bottom drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)] transition-all duration-500"
+              style={{ filter: tintFilters[currentPreviewBg.id] || "brightness(0.2)" }}
+            />
+
+            {/* Selection Text overlay instructing to tap */}
+            {!isCurrentPreviewSelected && (
+              <div className="absolute inset-x-0 top-6 text-center opacity-0 hover:opacity-100 transition-opacity pointer-events-none">
+                <span className="bg-background/80 backdrop-blur px-6 py-2 rounded-full font-medium shadow-lg">
+                  Tap image to select for export
+                </span>
+              </div>
+            )}
+
+            {/* Radio / Checkmark overlay for selection state */}
+            {isCurrentPreviewSelected ? (
+              <div className="absolute top-4 right-4 bg-primary text-primary-foreground rounded-full p-2 shadow-xl animate-in zoom-in pointer-events-none">
+                <Check className="w-8 h-8" />
+              </div>
+            ) : (
+              <div className="absolute top-4 right-4 bg-black/40 text-white rounded-full p-2 shadow-xl hover:bg-black/60 transition-colors">
+                <Circle className="w-8 h-8" />
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="w-full max-w-4xl aspect-[4/3] bg-muted/50 rounded-2xl animate-pulse flex items-center justify-center">
+            <span className="text-muted-foreground text-xl">Loading preview...</span>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Horizontal Thumbnails Strip (Native scroll so touch devices can swipe inside it easily) */}
+      <div className="w-full shrink-0 bg-muted/10 rounded-xl p-4 border relative z-10">
+        <div className="w-full overflow-x-auto touch-pan-x snap-x snap-mandatory flex space-x-4 pb-2 items-center custom-scrollbar">
+          {backgrounds.map((bg) => {
+            const selected = selectedCards.includes(bg.id);
+            const isPreviewing = previewBgId === bg.id;
+
+            return (
+              <div
+                key={bg.id}
+                className="snap-start flex flex-col items-center gap-2 group cursor-pointer"
+                onClick={() => {
+                  // If it's already the preview, clicking it toggles selection.
+                  // If it's not the preview, the first click makes it the preview.
+                  if (isPreviewing) {
+                    toggleSelection(bg.id);
+                  } else {
+                    setPreviewBgId(bg.id);
+                  }
+                }}
               >
                 <div
-                  className="aspect-[4/3] w-full bg-muted bg-cover bg-center"
-                  style={{
-                    backgroundImage: `url(${composites[item.id] ?? `http://localhost:8000${item.url}`})`,
-                  }}
-                />
-                <div className="p-3 flex items-center justify-between gap-2">
-                  <p className="font-medium truncate">{item.title}</p>
-                  <Button
-                    size="sm"
-                    variant="default"
-                    className="shrink-0 text-xs px-2 py-1 h-auto bg-blue-600 hover:bg-blue-700"
-                    disabled={compositing === item.id}
-                    onClick={(e) => handleApply(item.id, e)}
-                  >
-                    {compositing === item.id ? (
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                    ) : composites[item.id] ? (
-                      "Re-apply"
-                    ) : (
-                      "Apply"
-                    )}
-                  </Button>
+                  className={`
+                      relative w-40 h-30 flex-shrink-0 rounded-lg overflow-hidden border-4 transition-all duration-300
+                      ${selected ? 'border-primary ring-2 ring-primary/30' : 'border-transparent group-hover:border-primary/50'}
+                      ${isPreviewing ? 'shadow-lg scale-105' : 'opacity-70 group-hover:opacity-100'}
+                    `}
+                >
+                  <img
+                    src={`http://localhost:8000${bg.url}`}
+                    alt={bg.title}
+                    className="w-full h-full object-cover"
+                  />
+                  {/* Radio / Checkmark overlay */}
+                  {selected ? (
+                    <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-1 shadow-sm animate-in zoom-in">
+                      <Check className="w-4 h-4" />
+                    </div>
+                  ) : (
+                    <div className="absolute top-1 right-1 bg-black/40 text-white rounded-full p-1 shadow-sm transition-colors group-hover:bg-black/60">
+                      <Circle className="w-4 h-4" />
+                    </div>
+                  )}
                 </div>
-                {selectedCards.includes(item.id) && (
-                  <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1 shadow-sm">
-                    <Check className="w-4 h-4" />
-                  </div>
-                )}
-              </Card>
-            ))}
-          </div>
+                <span className={`text-sm font-medium ${isPreviewing ? 'text-primary scale-110 mt-1 transition-transform font-bold' : 'text-muted-foreground group-hover:text-foreground'}`}>
+                  {bg.title}
+                </span>
+              </div>
+            );
+          })}
         </div>
+      </div>
 
-        {/* Footer Area with Count and Next Button */}
-        <div className="absolute bottom-0 right-0 p-2 bg-background/80 backdrop-blur-sm w-full flex justify-end items-center gap-6 border-t pb-12">
-          <span className="text-lg font-medium text-muted-foreground">
-            {selectedCards.length} selected
-          </span>
+      {/* Action Bar (Now static below to prevent overlapping) */}
+      <div className="w-full shrink-0 py-4 flex justify-end items-center z-30 mt-auto border-t">
+        <div className="flex items-center gap-6 bg-background rounded-full shadow-sm p-2 pl-6">
+          <div className="flex flex-col items-end mr-2">
+            <span className="text-xl font-bold text-primary">
+              {selectedCards.length}
+            </span>
+            <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
+              Selected
+            </span>
+          </div>
           <Button
             size="lg"
-            className="text-lg px-8 py-6"
+            className="h-16 px-10 text-xl font-bold rounded-xl shadow-lg hover:shadow-xl transition-all"
             onClick={handleProceed}
             disabled={selectedCards.length === 0}
           >
-            Next
+            Review & Export
           </Button>
         </div>
       </div>

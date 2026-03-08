@@ -2,6 +2,7 @@ import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ArrowLeft } from "lucide-react";
 
 const CameraPage = () => {
   const navigate = useNavigate();
@@ -10,6 +11,7 @@ const CameraPage = () => {
   const [stream, setStream] = React.useState<MediaStream | null>(null);
   const [capturedImage, setCapturedImage] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [countdown, setCountdown] = React.useState<number | null>(null);
 
   const startCamera = React.useCallback(async () => {
     try {
@@ -43,6 +45,20 @@ const CameraPage = () => {
     };
   }, []);
 
+  // Timer Effect
+  React.useEffect(() => {
+    if (countdown === null) return;
+    if (countdown === 0) {
+      capturePhoto();
+      setCountdown(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setCountdown(countdown - 1);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [countdown]);
+
   const capturePhoto = () => {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
@@ -72,39 +88,73 @@ const CameraPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background p-8">
-      <h1 className="text-2xl font-bold text-center mb-4">Capture Your Photo</h1>
-      <p className="text-center text-muted-foreground mb-8">
-        Position yourself in the frame and click capture when ready
-      </p>
+    <div className="min-h-screen bg-background relative flex flex-col p-4 md:p-8">
+      {/* Top Bar with Back Button */}
+      <div className="absolute top-4 left-4 md:top-8 md:left-8 z-10">
+        <Button
+          variant="outline"
+          size="lg"
+          className="h-14 px-6 text-lg rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2 bg-background/80 backdrop-blur-sm"
+          onClick={() => {
+            stopCamera();
+            navigate("/");
+          }}
+        >
+          <ArrowLeft className="w-6 h-6" /> Back
+        </Button>
+      </div>
 
-      <div className="max-w-2xl mx-auto">
-        <Card>
-          <CardContent className="p-6">
-            {error ? (
-              <div className="text-center text-destructive p-8">
-                <p>{error}</p>
-                <Button onClick={startCamera} className="mt-4">Try Again</Button>
-              </div>
-            ) : capturedImage ? (
-              <div className="space-y-4">
-                <img src={capturedImage} alt="Captured" className="w-full rounded-lg" />
-                <div className="flex justify-center gap-4">
-                  <Button variant="outline" onClick={retakePhoto}>Retake</Button>
-                  <Button onClick={proceedToSelection}>Proceed</Button>
+      <div className="flex-1 flex flex-col pt-16 md:pt-4">
+        <h1 className="text-4xl font-bold text-center mb-4">Step 1: Capture Your Photo</h1>
+        <p className="text-center text-xl text-primary font-medium mb-8 animate-pulse">
+          Make sure your entire body (head to toes) is visible in the frame!
+        </p>
+
+        <div className="max-w-4xl mx-auto w-full flex-1">
+          <Card className="shadow-lg border-2">
+            <CardContent className="p-6">
+              {error ? (
+                <div className="text-center text-destructive p-8">
+                  <p>{error}</p>
+                  <Button onClick={startCamera} className="mt-4">Try Again</Button>
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <video ref={videoRef} autoPlay playsInline muted className="w-full rounded-lg bg-muted" />
-                <div className="flex justify-center">
-                  <Button size="lg" onClick={capturePhoto}>Capture</Button>
+              ) : capturedImage ? (
+                <div className="space-y-6">
+                  <img src={capturedImage} alt="Captured" className="w-full h-auto max-h-[60vh] object-contain rounded-lg bg-muted" />
+                  <div className="flex justify-center gap-6">
+                    <Button variant="outline" size="lg" className="h-16 px-8 text-xl" onClick={retakePhoto}>Retake Photo</Button>
+                    <Button size="lg" className="h-16 px-12 text-xl shadow-md hover:shadow-lg transition-transform hover:scale-105" onClick={proceedToSelection}>Proceed to Styling</Button>
+                  </div>
                 </div>
-              </div>
-            )}
-            <canvas ref={canvasRef} className="hidden" />
-          </CardContent>
-        </Card>
+              ) : (
+                <div className="space-y-6 relative">
+                  <video ref={videoRef} autoPlay playsInline muted className="w-full h-auto max-h-[60vh] object-contain rounded-lg bg-muted border-2 border-primary/20" />
+
+                  {countdown !== null && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="text-[150px] font-bold text-white drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] animate-pulse">
+                        {countdown}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-center">
+                    {countdown === null ? (
+                      <Button size="lg" className="h-20 px-16 text-2xl rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all bg-primary animate-in zoom-in duration-300" onClick={() => setCountdown(10)}>
+                        📸 Start 10s Timer
+                      </Button>
+                    ) : (
+                      <Button size="lg" variant="destructive" className="h-20 px-16 text-2xl rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all animate-in zoom-in duration-300" onClick={() => setCountdown(null)}>
+                        Cancel Timer
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+              <canvas ref={canvasRef} className="hidden" />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

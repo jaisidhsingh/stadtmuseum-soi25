@@ -23,19 +23,20 @@ I = 1
 _sampled_color_cache: Dict[str, tuple] = {}
 
 BACKGROUNDS: Dict[str, Dict] = {
-    "bg1": {
-        "id": "bg1",
-        "filename": "bg1.jpg",
-        "positions": [[720, 1440]],
-        "max_w": 500 // I,
-        "max_h": 1000 // I,
-    },
+    # "bg1": {
+    #     "id": "bg1",
+    #     "filename": "bg1.jpg",
+    #     "positions": [[720, 1440]],
+    #     "max_w": 500 // I,
+    #     "max_h": 1000 // I,
+    # },
     "bg2": {
         "id": "bg2",
         "filename": "bg2.jpg",  # Reusing same file for now as placebo
         "positions": [[480, 690]],
         "max_w": 280 // I,
         "max_h": 560 // I,
+        "silhouette_color": (30, 25, 20),
     },
     "bg3": {
         "id": "bg3",
@@ -43,6 +44,7 @@ BACKGROUNDS: Dict[str, Dict] = {
         "positions": [[560, 590]],
         "max_w": 180 // I,
         "max_h": 360 // I,
+        "silhouette_color": (15, 25, 35),
     },
     "bg4": {
         "id": "bg4",
@@ -50,8 +52,122 @@ BACKGROUNDS: Dict[str, Dict] = {
         "positions": [[920, 600]],
         "max_w": 100 // I,
         "max_h": 200 // I,
+        "silhouette_color": (45, 30, 20),
     },
     "bg5": {
+        "id": "bg5",
+        "filename": "bg5.jpg",
+        "positions": [[1120, 1000]],
+        "max_w": 220 // I,
+        "max_h": 440 // I,
+        "silhouette_color": (20, 20, 25),
+    },
+    "bg6": {
+        "id": "bg2",
+        "filename": "bg2.jpg",  # Reusing same file for now as placebo
+        "positions": [[480, 690]],
+        "max_w": 280 // I,
+        "max_h": 560 // I,
+    },
+    "bg7": {
+        "id": "bg3",
+        "filename": "bg3.jpg",
+        "positions": [[560, 590]],
+        "max_w": 180 // I,
+        "max_h": 360 // I,
+    },
+    "bg8": {
+        "id": "bg4",
+        "filename": "bg4.jpg",
+        "positions": [[920, 600]],
+        "max_w": 100 // I,
+        "max_h": 200 // I,
+    },
+    "bg9": {
+        "id": "bg5",
+        "filename": "bg5.jpg",
+        "positions": [[1120, 1000]],
+        "max_w": 220 // I,
+        "max_h": 440 // I,
+    },
+    "bg10": {
+        "id": "bg2",
+        "filename": "bg2.jpg",  # Reusing same file for now as placebo
+        "positions": [[480, 690]],
+        "max_w": 280 // I,
+        "max_h": 560 // I,
+    },
+    "bg11": {
+        "id": "bg3",
+        "filename": "bg3.jpg",
+        "positions": [[560, 590]],
+        "max_w": 180 // I,
+        "max_h": 360 // I,
+    },
+    "bg12": {
+        "id": "bg4",
+        "filename": "bg4.jpg",
+        "positions": [[920, 600]],
+        "max_w": 100 // I,
+        "max_h": 200 // I,
+    },
+    "bg13": {
+        "id": "bg5",
+        "filename": "bg5.jpg",
+        "positions": [[1120, 1000]],
+        "max_w": 220 // I,
+        "max_h": 440 // I,
+    },
+    "bg14": {
+        "id": "bg2",
+        "filename": "bg2.jpg",  # Reusing same file for now as placebo
+        "positions": [[480, 690]],
+        "max_w": 280 // I,
+        "max_h": 560 // I,
+    },
+    "bg15": {
+        "id": "bg3",
+        "filename": "bg3.jpg",
+        "positions": [[560, 590]],
+        "max_w": 180 // I,
+        "max_h": 360 // I,
+    },
+    "bg16": {
+        "id": "bg4",
+        "filename": "bg4.jpg",
+        "positions": [[920, 600]],
+        "max_w": 100 // I,
+        "max_h": 200 // I,
+    },
+    "bg17": {
+        "id": "bg5",
+        "filename": "bg5.jpg",
+        "positions": [[1120, 1000]],
+        "max_w": 220 // I,
+        "max_h": 440 // I,
+    },
+    "bg18": {
+        "id": "bg2",
+        "filename": "bg2.jpg",  # Reusing same file for now as placebo
+        "positions": [[480, 690]],
+        "max_w": 280 // I,
+        "max_h": 560 // I,
+    },
+    "bg19": {
+        "id": "bg3",
+        "filename": "bg3.jpg",
+        "positions": [[560, 590]],
+        "max_w": 180 // I,
+        "max_h": 360 // I,
+    },
+    "bg20": {
+        "id": "bg4",
+        "filename": "bg4.jpg",
+        "positions": [[920, 600]],
+        "max_w": 100 // I,
+        "max_h": 200 // I,
+    },
+    "bg21": {
         "id": "bg5",
         "filename": "bg5.jpg",
         "positions": [[1120, 1000]],
