@@ -64,7 +64,7 @@ BACKGROUNDS: Dict[str, Dict] = {
     },
     "bg6": {
         "id": "bg6",
-        "filename": "bg6.jpg",
+        "filename": "bg6.png",
         "positions": [[179, 575]],
         "max_w": 122 // I,
         "max_h": 235 // I,
@@ -72,7 +72,7 @@ BACKGROUNDS: Dict[str, Dict] = {
     },
     "bg7": {
         "id": "bg7",
-        "filename": "bg7.jpg",
+        "filename": "bg7.png",
         "positions": [[423, 570]],
         "max_w": 149 // I,
         "max_h": 261 // I,
@@ -80,7 +80,7 @@ BACKGROUNDS: Dict[str, Dict] = {
     },
     "bg8": {
         "id": "bg8",
-        "filename": "bg8.jpg",
+        "filename": "bg8.png",
         "positions": [[394, 468]],
         "max_w": 104 // I,
         "max_h": 153 // I,
@@ -88,7 +88,7 @@ BACKGROUNDS: Dict[str, Dict] = {
     },
     "bg9": {
         "id": "bg9",
-        "filename": "bg9.jpg",
+        "filename": "bg9.png",
         "positions": [[663, 541]],
         "max_w": 88 // I,
         "max_h": 142 // I,
@@ -96,7 +96,7 @@ BACKGROUNDS: Dict[str, Dict] = {
     },
     "bg10": {
         "id": "bg10",
-        "filename": "bg10.jpg",
+        "filename": "bg10.png",
         "positions": [[482, 458]],
         "max_w": 104 // I,
         "max_h": 210 // I,
@@ -104,7 +104,7 @@ BACKGROUNDS: Dict[str, Dict] = {
     },
     "bg11": {
         "id": "bg11",
-        "filename": "bg11.jpg",
+        "filename": "bg11.png",
         "positions": [[324, 567]],
         "max_w": 107 // I,
         "max_h": 245 // I,
@@ -112,13 +112,68 @@ BACKGROUNDS: Dict[str, Dict] = {
     },
     "bg12": {
         "id": "bg12",
-        "filename": "bg12.jpg",
+        "filename": "bg12.png",
         "positions": [[203, 565]],
         "max_w": 140 // I,
         "max_h": 264 // I,
         "silhouette_color": (9.4, 6.7, 2.0),
     },
-    
+    "bg13": {
+        "id": "bg13",
+        "filename": "bg13.png",
+        "positions": [[1245, 1602]],
+        "max_w": 375 // I,
+        "max_h": 735 // I,
+        "silhouette_color": (0, 0, 0),
+    },
+    "bg14": {
+        "id": "bg14",
+        "filename": "bg14.png",
+        "positions": [[1194, 1827]],
+        "max_w": 579 // I,
+        "max_h": 1212 // I,
+        "silhouette_color": (4.3, 9.0, 3.5),
+    },
+    "bg15": {
+        "id": "bg15",
+        "filename": "bg15.png",
+        "positions": [[1347, 1773]],
+        "max_w": 303 // I,
+        "max_h": 543 // I,
+        "silhouette_color": (3.1, 6.3, 2.0),
+    },
+    "bg16": {
+        "id": "bg16",
+        "filename": "bg16.png",
+        "positions": [[1887, 1545]],
+        "max_w": 510 // I,
+        "max_h": 1380 // I,
+        "silhouette_color": (4.7, 5.1, 2.7),
+    },
+    "bg17": {
+        "id": "bg17",
+        "filename": "bg17.png",
+        "positions": [[1125, 1554]],
+        "max_w": 291 // I,
+        "max_h": 726 // I,
+        "silhouette_color": (2.4, 7.5, 0.8),
+    },
+    "bg18": {
+        "id": "bg18",
+        "filename": "bg18.png",
+        "positions": [[1263, 1362]],
+        "max_w": 504 // I,
+        "max_h": 864 // I,
+        "silhouette_color": (10.6, 9.4, 7.5),
+    },
+    "bg19": {
+        "id": "bg19",
+        "filename": "bg19.png",
+        "positions": [[1797, 1461]],
+        "max_w": 309 // I,
+        "max_h": 786 // I,
+        "silhouette_color": (13.1, 9.8, 7.8),
+    },
 }
 
 
