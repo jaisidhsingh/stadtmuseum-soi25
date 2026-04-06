@@ -72,10 +72,11 @@ class BodyPartSegmenter:
     MODEL_NAME = "mattmdjaga/segformer_b2_clothes"
     MAX_DIM = 1024  # cap input resolution to prevent OOM
 
-    def __init__(self):
-        logger.info(f"Loading body-part segmentation model: {self.MODEL_NAME}")
-        self.processor = SegformerImageProcessor.from_pretrained(self.MODEL_NAME)
-        self.model = SegformerForSemanticSegmentation.from_pretrained(self.MODEL_NAME)
+    def __init__(self, model_name: Optional[str] = None):
+        self.model_name = model_name or self.MODEL_NAME
+        logger.info(f"Loading body-part segmentation model: {self.model_name}")
+        self.processor = SegformerImageProcessor.from_pretrained(self.model_name)
+        self.model = SegformerForSemanticSegmentation.from_pretrained(self.model_name)
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)

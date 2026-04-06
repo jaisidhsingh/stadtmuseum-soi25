@@ -43,9 +43,12 @@ const StartPage = () => {
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
                 <p>1. Take a photo of yourself</p>
-                <p>2. We'll transform you into a silhouette in Lotte Reiniger's style</p>
+                <p>
+                  2. We'll transform you into a silhouette in Lotte Reiniger's
+                  style
+                </p>
                 <p>3. Choose your favorite backgrounds</p>
-                <p>4. Get your artwork sent to your email!</p>
+                <p>4. Export a QR code to open and share your artwork!</p>
               </CardContent>
             </Card>
 
@@ -56,16 +59,21 @@ const StartPage = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-xs text-muted-foreground">
-                  Your photo will only be used to create your personalized artwork.
-                  We do not store your original photo after processing.
+                  Your photo will only be used to create your personalized
+                  artwork. We do not store your original photo after processing.
                 </p>
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="privacy"
                     checked={acceptedPrivacy}
-                    onCheckedChange={(checked) => setAcceptedPrivacy(checked === true)}
+                    onCheckedChange={(checked) =>
+                      setAcceptedPrivacy(checked === true)
+                    }
                   />
-                  <label htmlFor="privacy" className="text-xs cursor-pointer font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  <label
+                    htmlFor="privacy"
+                    className="text-xs cursor-pointer font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
                     I accept the Privacy Policy
                   </label>
                 </div>
@@ -80,15 +88,21 @@ const StartPage = () => {
               <CardContent className="space-y-4">
                 <p className="text-xs text-muted-foreground">
                   By using this exhibit, you agree to let us process your image
-                  for artistic purposes. The generated artwork is for personal use only.
+                  for artistic purposes. The generated artwork is for personal use
+                  only.
                 </p>
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="terms"
                     checked={acceptedTerms}
-                    onCheckedChange={(checked) => setAcceptedTerms(checked === true)}
+                    onCheckedChange={(checked) =>
+                      setAcceptedTerms(checked === true)
+                    }
                   />
-                  <label htmlFor="terms" className="text-xs cursor-pointer font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  <label
+                    htmlFor="terms"
+                    className="text-xs cursor-pointer font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
                     I accept the Terms & Conditions
                   </label>
                 </div>

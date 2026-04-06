@@ -26,17 +26,48 @@ type PartGroup = {
 };
 
 const PART_GROUPS: PartGroup[] = [
-  { id: "hat", label: "Head Accessories", fallbacks: ["hat_thumbnail.png", "hat.png", "head.png"] },
-  { id: "arms", label: "Arms", fallbacks: ["arms_thumbnail.png", "right_forearm.png", "left_forearm.png", "right_upper_arm.png"] },
-  { id: "legs", label: "Legs", fallbacks: ["legs_thumbnail.png", "right_calf.png", "left_calf.png", "right_thigh.png"] },
-  { id: "feet", label: "Feet", fallbacks: ["feet_thumbnail.png", "right_foot.png", "left_foot.png"] },
+  {
+    id: "hat",
+    label: "Head Accessories",
+    fallbacks: ["hat_thumbnail.png", "hat.png", "head.png"],
+  },
+  {
+    id: "arms",
+    label: "Arms",
+    fallbacks: [
+      "arms_thumbnail.png",
+      "right_forearm.png",
+      "left_forearm.png",
+      "right_upper_arm.png",
+    ],
+  },
+  {
+    id: "legs",
+    label: "Legs",
+    fallbacks: [
+      "legs_thumbnail.png",
+      "right_calf.png",
+      "left_calf.png",
+      "right_thigh.png",
+    ],
+  },
+  {
+    id: "feet",
+    label: "Feet",
+    fallbacks: ["feet_thumbnail.png", "right_foot.png", "left_foot.png"],
+  },
 ];
 
 const SilhouettePage = () => {
   const navigate = useNavigate();
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [originalResource, setOriginalResource] = useState<ImageResource | null>(null);
-  const [warpedResource, setWarpedResource] = useState<ImageResource | null>(null);
+  const [contextId, setContextId] = useState<string | null>(null);
+  const [originalResource, setOriginalResource] = useState<ImageResource | null>(
+    null,
+  );
+  const [warpedResource, setWarpedResource] = useState<ImageResource | null>(
+    null,
+  );
 
   const [isLoadingOriginal, setIsLoadingOriginal] = useState(false);
   const [isLoadingWarped, setIsLoadingWarped] = useState(false);
@@ -58,11 +89,16 @@ const SilhouettePage = () => {
     .map(([group]) => group);
 
   const characterMapping = Object.fromEntries(
-    Object.entries(selections).filter(([_, char]) => char !== null)
+    Object.entries(selections).filter(([_, char]) => char !== null),
   );
 
-  const displayResource = selectedParts.length > 0 && warpedResource ? warpedResource : originalResource;
-  const previewImage = displayResource ? `http://localhost:8000${displayResource.url}` : null;
+  const displayResource =
+    selectedParts.length > 0 && warpedResource
+      ? warpedResource
+      : originalResource;
+  const previewImage = displayResource
+    ? `http://localhost:8000${displayResource.url}`
+    : null;
 
   // Initialize
   useEffect(() => {
@@ -75,9 +111,9 @@ const SilhouettePage = () => {
 
     // Fetch available characters
     fetch("http://localhost:8000/characters")
-      .then(res => res.json())
-      .then(data => setCharacters(data))
-      .catch(err => console.error("Failed to fetch characters", err));
+      .then((res) => res.json())
+      .then((data) => setCharacters(data))
+      .catch((err) => console.error("Failed to fetch characters", err));
   }, [navigate]);
 
   // Helper: dataURL → File
@@ -104,15 +140,16 @@ const SilhouettePage = () => {
       try {
         const formData = new FormData();
         formData.append("image", dataURLtoFile(capturedImage, "capture.png"));
-        formData.append("use_classical_warping", "true");
-
         const res = await fetch("http://localhost:8000/segment", {
           method: "POST",
           body: formData,
         });
         if (!res.ok) throw new Error("Segment failed");
         const data = await res.json();
-        if (!cancelled) setOriginalResource(data.original);
+        if (!cancelled) {
+          setOriginalResource(data.original);
+          setContextId(data.context_id || null);
+        }
       } catch (error) {
         console.error("Error fetching original:", error);
         if (!cancelled) {
@@ -128,12 +165,14 @@ const SilhouettePage = () => {
     };
 
     fetchOriginal();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [capturedImage]);
 
   // Effect 2: fetch warped silhouette whenever selections change (debounced)
   useEffect(() => {
-    if (!capturedImage || !originalResource) return;
+    if (!originalResource || !contextId) return;
 
     if (selectedParts.length === 0) {
       setWarpedResource(null);
@@ -144,20 +183,17 @@ const SilhouettePage = () => {
     const timeoutId = setTimeout(async () => {
       setIsLoadingWarped(true);
       try {
-        const formData = new FormData();
-        formData.append("image", dataURLtoFile(capturedImage, "capture.png"));
-        formData.append("use_classical_warping", "true");
-        formData.append("parts_to_warp", selectedParts.join(","));
-        formData.append("character_mapping", JSON.stringify(characterMapping));
-
-        // Use a default base name to avoid errors, though mapping overrides it
-        formData.append("base_name", characters[0] || "Prince_Achmed");
-
-        const res = await fetch("http://localhost:8000/segment", {
+        const res = await fetch("http://localhost:8000/stylize", {
           method: "POST",
-          body: formData,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            context_id: contextId,
+            parts_to_warp: selectedParts.join(","),
+            character_mapping: characterMapping,
+            base_name: characters[0] || "Prince_Achmed",
+          }),
         });
-        if (!res.ok) throw new Error("Segment failed");
+        if (!res.ok) throw new Error("Stylize failed");
         const data = await res.json();
         if (!cancelled) {
           setWarpedResource(data.stylized?.[0] || null);
@@ -174,12 +210,15 @@ const SilhouettePage = () => {
       cancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [selections, capturedImage, originalResource, characters]);
+  }, [selections, originalResource, contextId, characters]);
 
-  const toggleSelection = (group: keyof CharacterSelections, charName: string) => {
-    setSelections(prev => ({
+  const toggleSelection = (
+    group: keyof CharacterSelections,
+    charName: string,
+  ) => {
+    setSelections((prev) => ({
       ...prev,
-      [group]: prev[group] === charName ? null : charName
+      [group]: prev[group] === charName ? null : charName,
     }));
   };
 
@@ -252,30 +291,49 @@ const SilhouettePage = () => {
                   <div className="flex w-max space-x-4 p-1">
                     {/* The "None" Selection Card */}
                     <div
-                      onClick={() => setSelections(prev => ({ ...prev, [group.id]: null }))}
+                      onClick={() =>
+                        setSelections((prev) => ({ ...prev, [group.id]: null }))
+                      }
                       className={`
                         relative cursor-pointer overflow-hidden rounded-xl border-2 transition-all duration-200
                         hover:scale-105 active:scale-95
                         w-28 h-28 flex-shrink-0 bg-muted/50 flex flex-col items-center justify-center
-                        ${selections[group.id] === null ? 'border-primary ring-2 ring-primary/30 bg-primary/5' : 'border-transparent hover:border-primary/50'}
+                        ${selections[group.id] === null ? "border-primary ring-2 ring-primary/30 bg-primary/5" : "border-transparent hover:border-primary/50"}
                       `}
                     >
                       <div className="w-10 h-10 rounded-full border-2 border-dashed border-muted-foreground/50 flex items-center justify-center mb-2">
-                        <span className="text-muted-foreground/50 text-xl block leading-none rotate-45">+</span>
+                        <span className="text-muted-foreground/50 text-xl block leading-none rotate-45">
+                          +
+                        </span>
                       </div>
-                      <span className="text-sm font-medium text-muted-foreground">None</span>
+                      <span className="text-sm font-medium text-muted-foreground">
+                        None
+                      </span>
 
                       {/* Selected indicator */}
                       {selections[group.id] === null && (
                         <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center shadow-sm">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="w-3 h-3"
+                          >
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                          </svg>
                         </div>
                       )}
                     </div>
 
                     {/* Character Cards */}
                     {characters.map((char) => {
-                      const isSelected = selections[group.id as keyof CharacterSelections] === char;
+                      const isSelected =
+                        selections[group.id as keyof CharacterSelections] ===
+                        char;
                       // We start with the first item in the fallbacks array
                       const initialThumbUrl = `http://localhost:8000/assets/${char}/${group.fallbacks[0]}`;
 
@@ -287,7 +345,7 @@ const SilhouettePage = () => {
                             relative cursor-pointer overflow-hidden rounded-xl border-2 transition-all duration-200
                             hover:scale-105 active:scale-95
                             w-28 h-28 flex-shrink-0 bg-muted/30
-                            ${isSelected ? 'border-primary ring-2 ring-primary/30' : 'border-transparent hover:border-primary/50'}
+                            ${isSelected ? "border-primary ring-2 ring-primary/30" : "border-transparent hover:border-primary/50"}
                           `}
                         >
                           <div className="absolute inset-0 p-2 flex items-center justify-center">
@@ -298,14 +356,18 @@ const SilhouettePage = () => {
                               data-fallback-index="0"
                               onError={(e) => {
                                 const target = e.target as HTMLImageElement;
-                                let currentIndex = parseInt(target.dataset.fallbackIndex || "0", 10);
+                                let currentIndex = parseInt(
+                                  target.dataset.fallbackIndex || "0",
+                                  10,
+                                );
                                 currentIndex++;
 
                                 if (currentIndex < group.fallbacks.length) {
-                                  target.dataset.fallbackIndex = currentIndex.toString();
+                                  target.dataset.fallbackIndex =
+                                    currentIndex.toString();
                                   target.src = `http://localhost:8000/assets/${char}/${group.fallbacks[currentIndex]}`;
                                 } else {
-                                  target.style.display = 'none';
+                                  target.style.display = "none";
                                 }
                               }}
                             />
@@ -322,7 +384,18 @@ const SilhouettePage = () => {
                           {/* Selected indicator */}
                           {isSelected && (
                             <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center shadow-sm">
-                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="3"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="w-3 h-3"
+                              >
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                              </svg>
                             </div>
                           )}
                         </div>

@@ -59,12 +59,21 @@ def tint_silhouette(silhouette: Image.Image, color: tuple) -> Image.Image:
     if silhouette.mode != "RGBA":
         silhouette = silhouette.convert("RGBA")
 
+    # Accept float/int RGB inputs and clamp safely for PIL channel creation.
+    r, g, b = color[:3]
+    r_i = int(round(float(r)))
+    g_i = int(round(float(g)))
+    b_i = int(round(float(b)))
+    r_i = max(0, min(255, r_i))
+    g_i = max(0, min(255, g_i))
+    b_i = max(0, min(255, b_i))
+
     _, _, _, a = silhouette.split()
 
     return Image.merge("RGBA", (
-        Image.new("L", silhouette.size, color[0]),
-        Image.new("L", silhouette.size, color[1]),
-        Image.new("L", silhouette.size, color[2]),
+        Image.new("L", silhouette.size, r_i),
+        Image.new("L", silhouette.size, g_i),
+        Image.new("L", silhouette.size, b_i),
         a,
     ))
 

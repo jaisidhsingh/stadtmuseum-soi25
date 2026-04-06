@@ -16,8 +16,11 @@ import os
 import tempfile
 import shutil
 import random
+import secrets
+import zipfile
 from pathlib import Path
-from typing import List, Optional, Dict
+from datetime import datetime, timedelta, timezone
+from typing import List, Optional, Dict, Any
 import logging
 from PIL import Image
 import numpy as np
@@ -26,7 +29,7 @@ import pandas as pd
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -44,7 +47,6 @@ from generate_silhouettes import (
 # Backend-local imports
 from segmentation_engine import SegmentationEngine
 from data_manager import SessionManager, BACKGROUNDS, BACKGROUNDS_DIR
-from email_service import EmailService
 from openpose_engine import OpenPoseEngine
 from body_part_segmentation import BodyPartSegmenter
 from image_utils import crop_to_content, tint_silhouette
@@ -386,7 +388,15 @@ _openpose_engine: Optional[OpenPoseEngine] = None
 _seg_engine: Optional[SegmentationEngine] = None
 _body_part_segmenter: Optional[BodyPartSegmenter] = None
 _engine_cache: Dict[str, dict] = {}  # base_name -> links_dict
-email_service = EmailService()
+_stylize_runtime_cache: Dict[str, Dict[str, Any]] = {}  # context_id -> runtime artifacts
+_share_tokens: Dict[str, Dict[str, Any]] = {}  # token -> {share_dir, files, expires_at, created_at}
+SHARE_EXPORTS_DIR = OUTPUTS_DIR / "share_exports"
+SHARE_EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
+
+# Privacy-first startup cleanup: remove any stale exported share files.
+for stale_dir in SHARE_EXPORTS_DIR.glob("*"):
+    if stale_dir.is_dir():
+        shutil.rmtree(stale_dir, ignore_errors=True)
 
 
 def get_openpose() -> OpenPoseEngine:
@@ -437,6 +447,18 @@ class ImageResource(BaseModel):
 class SegmentationResponse(BaseModel):
     original: ImageResource
     stylized: List[ImageResource]
+    context_id: Optional[str] = None
+
+
+class StylizeRequest(BaseModel):
+    context_id: str
+    base_name: str = "Prince_Achmed"
+    parts_to_warp: Optional[str] = None
+    character_mapping: Optional[Dict[str, str]] = None
+
+
+class StylizeResponse(BaseModel):
+    stylized: List[ImageResource]
 
 class CompositeRequest(BaseModel):
     silhouette_id: str
@@ -445,16 +467,25 @@ class CompositeRequest(BaseModel):
 class CompositeResponse(BaseModel):
     result: ImageResource
 
-class EmailRequest(BaseModel):
-    ids: List[str]
-    email: str
-
-class EmailResponse(BaseModel):
-    status: str
-    message: str
-
 class ClearResponse(BaseModel):
     status: str
+
+
+class ShareCreateRequest(BaseModel):
+    ids: List[str]
+    ttl_minutes: Optional[int] = 30
+
+
+class ShareCreateResponse(BaseModel):
+    token: str
+    share_url: str
+    expires_at: str
+
+
+class ShareInfoResponse(BaseModel):
+    token: str
+    urls: List[str]
+    expires_at: str
 
 
 # ---------------------------------------------------------------------------
@@ -499,6 +530,261 @@ def run_openpose_on_image(image_path: Path) -> dict:
     return {"people": people, "canvas_width": w, "canvas_height": h}
 
 
+def _resolve_context_input_path(context_id: str) -> Path:
+    p = SessionManager.find_path_by_id(context_id)
+    if not p or not p.exists():
+        raise FileNotFoundError(f"Context not found: {context_id}")
+    if "inputs" not in p.parts:
+        raise FileNotFoundError(f"Context does not reference an input image: {context_id}")
+    return p
+
+
+def _now_utc() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _cleanup_expired_share_tokens() -> None:
+    now = _now_utc()
+    expired = [
+        token for token, entry in _share_tokens.items()
+        if entry.get("expires_at") <= now
+    ]
+    for token in expired:
+        entry = _share_tokens.pop(token, None)
+        if not entry:
+            continue
+        share_dir = entry.get("share_dir")
+        if share_dir:
+            shutil.rmtree(share_dir, ignore_errors=True)
+
+
+def _public_base_url() -> str:
+    # Set this in production/tunnel mode, e.g. https://soi.yourdomain.com
+    return "https://castle-ordered-coast-kept.trycloudflare.com"
+    return os.environ.get("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/")
+
+
+def _build_share_url(token: str) -> str:
+    return f"{_public_base_url()}/share/{token}"
+
+
+def _create_share_token(ids: List[str], ttl_minutes: int) -> ShareCreateResponse:
+    _cleanup_expired_share_tokens()
+
+    if not ids:
+        raise HTTPException(status_code=400, detail="No image ids provided")
+
+    share_files: List[str] = []
+    share_id = secrets.token_hex(8)
+    share_dir = SHARE_EXPORTS_DIR / share_id
+    share_dir.mkdir(parents=True, exist_ok=True)
+
+    for idx, image_id in enumerate(ids, start=1):
+        path = SessionManager.find_path_by_id(image_id)
+        if not path:
+            continue
+        # Share endpoint is intended for final rendered compositions only.
+        if "compositions" not in path.parts:
+            continue
+        filename = f"image_{idx:02d}.png"
+        dst = share_dir / filename
+        try:
+            shutil.copy2(path, dst)
+            share_files.append(filename)
+        except Exception as e:
+            logger.warning(f"Failed to copy shared image {image_id}: {e}")
+
+    if not share_files:
+        shutil.rmtree(share_dir, ignore_errors=True)
+        raise HTTPException(status_code=404, detail="No valid images found for sharing")
+
+    ttl = max(1, min(180, int(ttl_minutes)))
+    created_at = _now_utc()
+    expires_at = created_at + timedelta(minutes=ttl)
+
+    token = secrets.token_urlsafe(16)
+    _share_tokens[token] = {
+        "share_dir": str(share_dir),
+        "files": share_files,
+        "created_at": created_at,
+        "expires_at": expires_at,
+    }
+
+    return ShareCreateResponse(
+        token=token,
+        share_url=_build_share_url(token),
+        expires_at=expires_at.isoformat(),
+    )
+
+
+def _get_share_entry(token: str) -> Dict[str, Any]:
+    _cleanup_expired_share_tokens()
+    entry = _share_tokens.get(token)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Share link not found or expired")
+    return entry
+
+
+def _resolve_share_paths(entry: Dict[str, Any]) -> List[Path]:
+    share_dir_raw = entry.get("share_dir")
+    files = entry.get("files", [])
+    if not share_dir_raw or not files:
+        return []
+
+    share_dir = Path(share_dir_raw)
+    paths: List[Path] = []
+    for name in files:
+        p = (share_dir / str(name)).resolve()
+        try:
+            p.relative_to(share_dir.resolve())
+        except Exception:
+            continue
+        if p.exists() and p.is_file():
+            paths.append(p)
+    return paths
+
+
+def _share_image_url(token: str, index: int) -> str:
+    return f"{_public_base_url()}/share/{token}/image/{index}"
+
+
+def _stylize_from_context(
+    context_id: str,
+    base_name: str,
+    parts_to_warp: Optional[str],
+    character_mapping: Optional[Dict[str, str]],
+) -> List[ImageResource]:
+    input_path = _resolve_context_input_path(context_id)
+
+    runtime = _stylize_runtime_cache.setdefault(context_id, {})
+
+    if "original_photo" not in runtime:
+        runtime["original_photo"] = Image.open(str(input_path)).convert("RGB")
+    original_photo: Image.Image = runtime["original_photo"]
+
+    if "person_alpha" not in runtime:
+        logger.info(f"[stylize:{context_id}] Running U2Net person silhouette...")
+        runtime["person_alpha"] = get_seg_engine().extract_silhouette(str(input_path))
+    person_alpha_pil: Image.Image = runtime["person_alpha"]
+
+    if "label_map" not in runtime:
+        logger.info(f"[stylize:{context_id}] Running SegFormer body-part labels (first stylize call)...")
+        runtime["label_map"] = get_segmenter().segment(original_photo)
+    label_map: np.ndarray = runtime["label_map"]
+
+    if "pose_result" not in runtime:
+        logger.info(f"[stylize:{context_id}] Running OpenPose (first stylize call)...")
+        runtime["pose_result"] = run_openpose_on_image(input_path)
+    pose_result: dict = runtime["pose_result"]
+
+    if "people_shifted" not in runtime:
+        people = pose_result.get("people", [])
+        pad = 400
+        shifted: List[dict] = []
+        for person in people:
+            p2 = {
+                "pose_keypoints_2d": list(person.get("pose_keypoints_2d", [])),
+                "hand_left_keypoints_2d": list(person.get("hand_left_keypoints_2d", [])),
+                "hand_right_keypoints_2d": list(person.get("hand_right_keypoints_2d", [])),
+                "face_keypoints_2d": list(person.get("face_keypoints_2d", [])),
+            }
+            kp = p2.get("pose_keypoints_2d", [])
+            if kp:
+                for i in range(len(kp) // 3):
+                    if kp[i * 3 + 2] > 0:
+                        kp[i * 3] += pad
+                        kp[i * 3 + 1] += pad
+            shifted.append(p2)
+        runtime["people_shifted"] = shifted
+
+    if "pose_kp_arr" not in runtime:
+        people = pose_result.get("people", [])
+        raw_kp = people[0].get("pose_keypoints_2d", []) if people else []
+        runtime["pose_kp_arr"] = np.array(raw_kp).reshape((-1, 3)) if raw_kp else None
+
+    links_dict = get_links(base_name).copy()
+    if character_mapping:
+        try:
+            for group, char_name in character_mapping.items():
+                char_links = get_links(char_name)
+                expanded = expand_parts_list([group])
+                for p in expanded:
+                    if p in char_links:
+                        links_dict[p] = char_links[p].copy()
+        except Exception as e:
+            logger.warning(f"Failed to apply character_mapping for stylize: {e}")
+
+    parts_list: Optional[List[str]] = None
+    if parts_to_warp:
+        parts_list = [p.strip() for p in parts_to_warp.split(",") if p.strip()]
+
+    stylized_resources: List[ImageResource] = []
+
+    people = pose_result.get("people", [])
+    canvas_w = pose_result.get("canvas_width", 1024)
+    canvas_h = pose_result.get("canvas_height", 1024)
+
+    if not people:
+        logger.warning(f"[stylize:{context_id}] OpenPose detected no people.")
+        return stylized_resources
+
+    if "base_sil" not in runtime:
+        runtime["base_sil"] = person_alpha_pil.convert("RGBA").resize((canvas_w, canvas_h))
+    base_sil = runtime["base_sil"]
+
+    if parts_list is not None:
+        expanded = expand_parts_list(parts_list)
+
+        non_hat_parts = set(links_dict.keys()) - {"hat"}
+        if set(expanded) >= non_hat_parts:
+            final_canvas = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
+        else:
+            erasure_mask = BodyPartSegmenter.build_erasure_mask(
+                label_map,
+                expanded,
+                pose_keypoints=runtime.get("pose_kp_arr"),
+            )
+            final_canvas = BodyPartSegmenter.erase_parts_from_silhouette(base_sil, erasure_mask)
+    else:
+        final_canvas = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
+
+    pad = 400
+    padded_w = canvas_w + 2 * pad
+    padded_h = canvas_h + 2 * pad
+    padded_canvas = Image.new("RGBA", (padded_w, padded_h), (0, 0, 0, 0))
+    padded_canvas.paste(final_canvas, (pad, pad))
+    final_canvas = padded_canvas
+
+    people_shifted = runtime.get("people_shifted", [])
+
+    should_add_hat = True
+    if parts_list is not None:
+        should_add_hat = "hat" in parts_list
+
+    for person in people_shifted:
+        person_sil = generate_silhouette_rgba(
+            person,
+            links_dict,
+            (padded_w, padded_h),
+            parts_to_render=parts_list,
+            add_hat=should_add_hat,
+        )
+        final_canvas.alpha_composite(person_sil)
+
+    final_canvas = crop_to_content(final_canvas)
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as wt:
+        final_canvas.save(wt, format="PNG")
+        warp_tmp_path = Path(wt.name)
+
+    warp_id, saved_path = SessionManager.save_silhouette(warp_tmp_path, context_id, "warped")
+    warp_tmp_path.unlink()
+
+    stylized_resources.append(
+        ImageResource(id=warp_id, url=SessionManager.get_relative_url(saved_path))
+    )
+    return stylized_resources
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -519,14 +805,27 @@ async def get_characters():
 async def get_backgrounds():
     bg_list = []
     for dict_key, bg_info in BACKGROUNDS.items():
+        bg_path = BACKGROUNDS_DIR / bg_info["filename"]
+        if not bg_path.exists():
+            logger.warning(f"Skipping missing background file: {bg_info['filename']}")
+            continue
+
         # Read bg dimensions
         w, h = 1920, 1080
         try:
-            bg_path = BACKGROUNDS_DIR / bg_info["filename"]
             with Image.open(bg_path) as img:
                 w, h = img.size
         except Exception as e:
             logger.warning(f"Could not read size of {bg_info['filename']}: {e}")
+
+        raw_color = bg_info.get("silhouette_color", (0, 0, 0))
+        if raw_color is None:
+            raw_color = (0, 0, 0)
+        silhouette_color = [
+            max(0, min(255, int(round(float(raw_color[0]))))),
+            max(0, min(255, int(round(float(raw_color[1]))))),
+            max(0, min(255, int(round(float(raw_color[2]))))),
+        ]
             
         bg_list.append({
             "id": dict_key,  # Use dictionary key directly so bg2..bg21 are unique
@@ -536,7 +835,8 @@ async def get_backgrounds():
             "max_w": bg_info.get("max_w", w),
             "max_h": bg_info.get("max_h", h),
             "bg_w": w,
-            "bg_h": h
+            "bg_h": h,
+            "silhouette_color": silhouette_color,
         })
     return bg_list
 
@@ -549,15 +849,14 @@ async def segment_image(
     character_mapping: Optional[str] = Form(None),
 ):
     """
-    Unified segmentation + warping endpoint.
-    Uses U2Net for person silhouette, SegFormer for body-part labels.
+    Silhouette generation endpoint.
+    This endpoint only generates the original silhouette and creates a context_id
+    for subsequent stylization calls.
 
     Args:
         image:          Uploaded photo.
-        base_name:      Default character folder name.
-        parts_to_warp:  Comma-separated body parts / groups to warp.
-        character_mapping: JSON string mapping part groups to base_names.
-                           e.g. '{"head": "Prince_AchmedSwapped", "arms": "Prince_Achmed"}'
+        base_name, parts_to_warp, character_mapping are accepted for backward
+        compatibility but ignored by this endpoint.
     """
     try:
         # ------ 1. Save upload ------------------------------------------------
@@ -573,7 +872,6 @@ async def segment_image(
         seg_engine = get_seg_engine()
         original_photo = Image.open(str(saved_input_path)).convert("RGB")
         person_alpha_pil = seg_engine.extract_silhouette(str(saved_input_path))
-        person_alpha_np = np.array(person_alpha_pil) / 255.0  # (H, W) float32 [0, 1]
 
         # Save original silhouette
         sil_image_cropped = crop_to_content(person_alpha_pil)
@@ -591,144 +889,49 @@ async def segment_image(
             url=SessionManager.get_relative_url(orig_sil_path),
         )
 
-        # ------ 3. SegFormer: body-part label map -----------------------------
-        logger.info("Running SegFormer for body-part labels...")
-        segmenter = get_segmenter()
-        label_map = segmenter.segment(original_photo)  # (H, W) uint8
-
-        # ------ 4. Load character links (with mapping overrides) --------------
-        links_dict = get_links(base_name).copy()
-
-        if character_mapping:
-            try:
-                mapping = json.loads(character_mapping)
-                for group, char_name in mapping.items():
-                    char_links = get_links(char_name)
-                    expanded = expand_parts_list([group])
-                    for p in expanded:
-                        if p in char_links:
-                            links_dict[p] = char_links[p].copy()
-            except Exception as e:
-                logger.warning(f"Failed to parse or apply character_mapping: {e}")
-
-        # ------ 5. Parse parts_to_warp ----------------------------------------
-        parts_list: Optional[List[str]] = None
-        if parts_to_warp:
-            parts_list = [p.strip() for p in parts_to_warp.split(",")]
-
-        # ------ 6. OpenPose -> warped silhouette(s) ---------------------------
-        stylized_resources = []
-        try:
-            logger.info("Running OpenPose for pose detection...")
-            pose_result = run_openpose_on_image(saved_input_path)
-
-            people = pose_result.get("people", [])
-            canvas_w = pose_result.get("canvas_width", 1024)
-            canvas_h = pose_result.get("canvas_height", 1024)
-
-            if people:
-                logger.info(f"Detected {len(people)} person(s).")
-
-                # Build base canvas
-                if parts_list is not None:
-                    # Partial warp: start with U2Net silhouette, erase warped regions
-                    base_sil = person_alpha_pil.convert("RGBA").resize((canvas_w, canvas_h))
-                    expanded = expand_parts_list(parts_list)
-
-                    # Check if ALL template parts selected -> full warp
-                    non_hat_parts = set(links_dict.keys()) - {"hat"}
-                    if set(expanded) >= non_hat_parts:
-                        logger.info("All parts selected -> full warp (transparent canvas)")
-                        final_canvas = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
-                    else:
-                        try:
-                            raw_kp = people[0].get("pose_keypoints_2d", [])
-                            pose_kp_arr = (np.array(raw_kp).reshape((-1, 3))
-                                           if raw_kp else None)
-
-                            erasure_mask = BodyPartSegmenter.build_erasure_mask(
-                                label_map, expanded, pose_keypoints=pose_kp_arr
-                            )
-                            
-                            final_canvas = BodyPartSegmenter.erase_parts_from_silhouette(
-                                base_sil, erasure_mask
-                            )
-                            logger.info(
-                                f"Erased {len(expanded)} body-part region(s) "
-                                "from silhouette."
-                            )
-                        except Exception as e:
-                            logger.warning(f"Body-part erasure failed: {e}")
-                            final_canvas = base_sil
-                else:
-                    # Full warp: transparent canvas
-                    final_canvas = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
-
-                # PAD the canvas to prevent accessories like hats getting cut off out-of-bounds
-                PAD = 400
-                padded_w = canvas_w + 2 * PAD
-                padded_h = canvas_h + 2 * PAD
-                padded_canvas = Image.new("RGBA", (padded_w, padded_h), (0, 0, 0, 0))
-                padded_canvas.paste(final_canvas, (PAD, PAD))
-                final_canvas = padded_canvas
-
-                # Shift OpenPose keypoints by the same padding
-                for person in people:
-                    kp = person.get("pose_keypoints_2d", [])
-                    if kp:
-                        for i in range(len(kp) // 3):
-                            if kp[i * 3 + 2] > 0:  # If confidence > 0
-                                kp[i * 3] += PAD      # x
-                                kp[i * 3 + 1] += PAD  # y
-
-                # Determine if hat should be added
-                should_add_hat = True
-                if parts_list is not None:
-                    should_add_hat = "hat" in parts_list
-
-                # Render warped parts for each detected person on padded canvas
-                for person in people:
-                    person_sil = generate_silhouette_rgba(
-                        person, links_dict,
-                        (padded_w, padded_h),
-                        parts_to_render=parts_list,
-                        add_hat=should_add_hat,
-                    )
-                    final_canvas.alpha_composite(person_sil)
-
-                final_canvas = crop_to_content(final_canvas)
-
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as wt:
-                    final_canvas.save(wt, format="PNG")
-                    warp_tmp_path = Path(wt.name)
-
-                warp_id, saved_path = SessionManager.save_silhouette(
-                    warp_tmp_path, input_id, "warped"
-                )
-                warp_tmp_path.unlink()
-
-                stylized_resources.append(ImageResource(
-                    id=warp_id,
-                    url=SessionManager.get_relative_url(saved_path),
-                ))
-            else:
-                logger.warning("OpenPose detected no people in the image.")
-
-        except Exception as e:
-            logger.error(f"OpenPose warping failed: {e}")
-            import traceback
-            traceback.print_exc()
-
         # Cleanup
         input_path.unlink(missing_ok=True)
+
+        # Prime stylize runtime with already-computed silhouette data so first
+        # stylize call skips a redundant U2Net pass.
+        runtime = _stylize_runtime_cache.setdefault(input_id, {})
+        runtime["original_photo"] = original_photo
+        runtime["person_alpha"] = person_alpha_pil
+
+        # Silhouette-only endpoint: stylization is handled by /stylize.
+        stylized_resources: List[ImageResource] = []
 
         return SegmentationResponse(
             original=orig_resource,
             stylized=stylized_resources,
+            context_id=input_id,
         )
 
     except Exception as e:
         logger.exception("Error in /segment")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/stylize", response_model=StylizeResponse)
+async def stylize_image(request: StylizeRequest):
+    """
+    Stylization endpoint.
+    Uses a previously generated context_id from /segment and performs warping.
+    SegFormer/OpenPose/U2Net are computed once per context and reused for
+    subsequent stylization updates in the same session.
+    """
+    try:
+        stylized = _stylize_from_context(
+            context_id=request.context_id,
+            base_name=request.base_name,
+            parts_to_warp=request.parts_to_warp,
+            character_mapping=request.character_mapping,
+        )
+        return StylizeResponse(stylized=stylized)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception("Error in /stylize")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -801,30 +1004,333 @@ async def compose_image(request: CompositeRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/send-email", response_model=EmailResponse)
-async def send_email(request: EmailRequest):
-    try:
-        paths = []
-        for img_id in request.ids:
-            path = SessionManager.find_path_by_id(img_id)
-            if path:
-                paths.append(path)
-            else:
-                logger.warning(f"Image ID not found for email: {img_id}")
+@app.post("/share/create", response_model=ShareCreateResponse)
+async def create_share_link(request: ShareCreateRequest):
+    return _create_share_token(request.ids, request.ttl_minutes or 30)
 
-        if not paths:
-            return EmailResponse(status="warning", message="No valid images found.")
 
-        result = email_service.send_email(request.email, paths)
-        return EmailResponse(status="success", message=result)
+@app.get("/share/info/{token}", response_model=ShareInfoResponse)
+async def get_share_info(token: str):
+    entry = _get_share_entry(token)
+    paths = _resolve_share_paths(entry)
+    urls = [_share_image_url(token, i) for i in range(len(paths))]
+    return ShareInfoResponse(
+        token=token,
+        urls=urls,
+        expires_at=entry["expires_at"].isoformat(),
+    )
 
-    except Exception as e:
-        logger.exception("Error sending email")
-        return EmailResponse(status="error", message=str(e))
+
+@app.get("/share/{token}/image/{index}")
+async def get_shared_image(token: str, index: int):
+    entry = _get_share_entry(token)
+    paths = _resolve_share_paths(entry)
+
+    if index < 0 or index >= len(paths):
+        raise HTTPException(status_code=404, detail="Shared image not found")
+
+    return FileResponse(paths[index])
+
+
+@app.get("/share/{token}/download/{index}")
+async def download_shared_image(token: str, index: int):
+    entry = _get_share_entry(token)
+    paths = _resolve_share_paths(entry)
+
+    if index < 0 or index >= len(paths):
+        raise HTTPException(status_code=404, detail="Shared image not found")
+
+    filename = f"shared-image-{index + 1}.png"
+    return FileResponse(paths[index], media_type="image/png", filename=filename)
+
+
+@app.get("/share/{token}/download-all")
+async def download_all_shared_images(token: str):
+    entry = _get_share_entry(token)
+    paths = _resolve_share_paths(entry)
+
+    if not paths:
+        raise HTTPException(status_code=404, detail="No shared images available")
+
+    share_dir = Path(entry.get("share_dir", ""))
+    if not share_dir:
+        raise HTTPException(status_code=404, detail="Share export folder missing")
+
+    zip_path = share_dir / "all-images.zip"
+    with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for i, image_path in enumerate(paths, start=1):
+            zf.write(image_path, arcname=f"shared-image-{i}.png")
+
+    return FileResponse(zip_path, media_type="application/zip", filename="shared-images.zip")
+
+
+@app.get("/share/{token}", response_class=HTMLResponse)
+async def open_share_page(token: str):
+    entry = _get_share_entry(token)
+    expires = entry["expires_at"].strftime("%Y-%m-%d %H:%M:%S UTC")
+    paths = _resolve_share_paths(entry)
+
+    if not paths:
+        raise HTTPException(status_code=404, detail="No shared images available")
+
+    items_html = "".join(
+        f'''
+<div class="item-card">
+    <label class="pick-row">
+        <input type="checkbox" class="pick-checkbox" data-index="{i}" checked />
+        <span>Select image {i + 1}</span>
+    </label>
+    <img src="/share/{token}/image/{i}" alt="Shared image {i + 1}" class="share-image" />
+    <div class="item-actions">
+        <a class="btn btn-download" href="/share/{token}/download/{i}">Download</a>
+        <button class="btn btn-share" onclick="shareImage('/share/{token}/image/{i}', {i + 1})">Share</button>
+    </div>
+</div>
+'''
+        for i in range(len(paths))
+    )
+
+    html_template = """
+<!doctype html>
+<html lang=\"en\">
+<head>
+  <meta charset=\"utf-8\" />
+  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
+  <title>Session Share</title>
+    <style>
+        :root {
+            color-scheme: light;
+        }
+        body {
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+            max-width: 980px;
+            margin: 24px auto;
+            padding: 0 16px 24px;
+            background: #f8f8f6;
+            color: #1d1d1b;
+        }
+        .item-card {
+            margin: 16px 0;
+            padding: 12px;
+            background: #ffffff;
+            border: 1px solid #e8e6df;
+            border-radius: 12px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        }
+        .share-image {
+            width: 100%;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+            display: block;
+        }
+        .bulk-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 12px 0 16px;
+        }
+        .pick-row {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: #333;
+        }
+        .pick-checkbox {
+            width: 18px;
+            height: 18px;
+        }
+        .item-actions {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            appearance: none;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 15px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .btn-download {
+            background: #1d4ed8;
+            color: #fff;
+        }
+        .btn-download-all {
+            background: #2563eb;
+            color: #fff;
+        }
+        .btn-download-selected {
+            background: #0f766e;
+            color: #fff;
+        }
+        .btn-share {
+            background: #111827;
+            color: #fff;
+        }
+        .btn-share-selected {
+            background: #7c3aed;
+            color: #fff;
+        }
+        .hint {
+            color: #5a5a58;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+  <h1>Shared Session Images</h1>
+  <p>This link expires at <strong>__EXPIRES__</strong>.</p>
+    <p class=\"hint\">Use Download to save an image, or Share to open your phone's share options.</p>
+  <div class="bulk-actions">
+    <button class="btn" onclick="setAllSelected(true)">Select All</button>
+    <button class="btn" onclick="setAllSelected(false)">Clear Selection</button>
+    <a class="btn btn-download-all" href="/share/__TOKEN__/download-all">Download All (ZIP)</a>
+    <button class="btn btn-download-selected" onclick="downloadSelected()">Download Selected</button>
+    <button class="btn btn-share-selected" onclick="shareSelected()">Share Selected</button>
+  </div>
+  __ITEMS_HTML__
+    <script>
+        function selectedIndexes() {
+            return Array.from(document.querySelectorAll('.pick-checkbox:checked'))
+                .map((el) => Number(el.dataset.index))
+                .filter((n) => Number.isInteger(n) && n >= 0);
+        }
+
+        function setAllSelected(checked) {
+            document.querySelectorAll('.pick-checkbox').forEach((el) => {
+                el.checked = checked;
+            });
+        }
+
+        async function shareFilesOrLinks(items) {
+            if (!items.length) {
+                alert('Select at least one image first.');
+                return;
+            }
+
+            if (navigator.share) {
+                // Try sharing actual files first.
+                try {
+                    const files = [];
+                    for (const item of items) {
+                        const res = await fetch(item.absoluteUrl);
+                        if (!res.ok) continue;
+                        const blob = await res.blob();
+                        files.push(new File([blob], item.filename, { type: blob.type || 'image/png' }));
+                    }
+
+                    if (files.length && navigator.canShare && navigator.canShare({ files })) {
+                        await navigator.share({
+                            title: files.length === 1 ? 'Shared image' : 'Shared images',
+                            text: files.length === 1 ? 'Shared image' : 'Shared images',
+                            files,
+                        });
+                        return;
+                    }
+                } catch (fileShareErr) {
+                    console.warn('Selected file share fallback:', fileShareErr);
+                }
+
+                // Fallback to sharing first selected URL.
+                const first = items[0];
+                await navigator.share({ title: 'Shared image', text: 'Shared image', url: first.absoluteUrl });
+                return;
+            }
+
+            const urls = items.map((x) => x.absoluteUrl).join('\n');
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(urls);
+                alert('Share not supported on this browser. Selected links copied to clipboard.');
+                return;
+            }
+
+            prompt('Copy these links to share:', urls);
+        }
+
+        async function shareImage(relativeUrl, index) {
+            const absoluteUrl = new URL(relativeUrl, window.location.origin).toString();
+            try {
+                await shareFilesOrLinks([
+                    {
+                        absoluteUrl,
+                        filename: 'shared-image-' + index + '.png',
+                    }
+                ]);
+            } catch (err) {
+                // User-cancelled share actions should stay quiet.
+                if (!err || err.name !== 'AbortError') {
+                    console.error(err);
+                    alert('Could not open sharing options on this device.');
+                }
+            }
+        }
+
+        function downloadSelected() {
+            const indexes = selectedIndexes();
+            if (!indexes.length) {
+                alert('Select at least one image first.');
+                return;
+            }
+
+            indexes.forEach((i) => {
+                const a = document.createElement('a');
+                a.href = '/share/__TOKEN__/download/' + i;
+                a.rel = 'noopener';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            });
+        }
+
+        async function shareSelected() {
+            const indexes = selectedIndexes();
+            if (!indexes.length) {
+                alert('Select at least one image first.');
+                return;
+            }
+
+            const items = indexes.map((i) => ({
+                absoluteUrl: new URL('/share/__TOKEN__/image/' + i, window.location.origin).toString(),
+                filename: 'shared-image-' + (i + 1) + '.png',
+            }));
+
+            try {
+                await shareFilesOrLinks(items);
+            } catch (err) {
+                if (!err || err.name !== 'AbortError') {
+                    console.error(err);
+                    alert('Could not open sharing options on this device.');
+                }
+            }
+        }
+    </script>
+</body>
+</html>
+"""
+    html = (
+        html_template
+        .replace("__EXPIRES__", expires)
+        .replace("__ITEMS_HTML__", items_html)
+        .replace("__TOKEN__", token)
+    )
+    return HTMLResponse(content=html)
 
 
 @app.post("/clear", response_model=ClearResponse)
 async def clear_data():
+    _stylize_runtime_cache.clear()
+    for entry in _share_tokens.values():
+        share_dir = entry.get("share_dir")
+        if share_dir:
+            shutil.rmtree(share_dir, ignore_errors=True)
+    _share_tokens.clear()
     SessionManager.clear_session()
     return ClearResponse(status="success")
 

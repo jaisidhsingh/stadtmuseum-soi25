@@ -1,8 +1,7 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft } from "lucide-react";
+import { Camera, RefreshCcw, ArrowRight, ArrowLeft } from "lucide-react";
 
 const CameraPage = () => {
   const navigate = useNavigate();
@@ -11,12 +10,11 @@ const CameraPage = () => {
   const [stream, setStream] = React.useState<MediaStream | null>(null);
   const [capturedImage, setCapturedImage] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
-  const [countdown, setCountdown] = React.useState<number | null>(null);
 
   const startCamera = React.useCallback(async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: 640, height: 480 },
+        video: { facingMode: "user", width: 1280, height: 720 },
       });
       setStream(mediaStream);
       if (videoRef.current) {
@@ -44,20 +42,6 @@ const CameraPage = () => {
       }
     };
   }, []);
-
-  // Timer Effect
-  React.useEffect(() => {
-    if (countdown === null) return;
-    if (countdown === 0) {
-      capturePhoto();
-      setCountdown(null);
-      return;
-    }
-    const timer = setTimeout(() => {
-      setCountdown(countdown - 1);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [countdown]);
 
   const capturePhoto = () => {
     if (videoRef.current && canvasRef.current) {
@@ -88,73 +72,98 @@ const CameraPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background relative flex flex-col p-4 md:p-8">
-      {/* Top Bar with Back Button */}
-      <div className="absolute top-4 left-4 md:top-8 md:left-8 z-10">
-        <Button
-          variant="outline"
-          size="lg"
-          className="h-14 px-6 text-lg rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2 bg-background/80 backdrop-blur-sm"
-          onClick={() => {
-            stopCamera();
-            navigate("/");
-          }}
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
+      {/* ── Top bar ──────────────────────────────────────────── */}
+      <div className="flex-shrink-0 px-8 pt-5 pb-4 flex items-start justify-between">
+        <div>
+          <p
+            className="text-xs font-semibold uppercase tracking-widest mb-1"
+            style={{ color: "hsl(var(--film-blue))", opacity: 0.7 }}
+          >
+            Step 1 of 4
+          </p>
+          <h1 className="text-2xl font-bold text-foreground">
+            {capturedImage ? "Looking good!" : "Take Your Photo"}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {capturedImage
+              ? "Happy with your photo? Continue — or retake if you'd like."
+              : "Stand facing the camera, then tap Capture when you're ready."}
+          </p>
+        </div>
+        <button
+          onClick={() => navigate("/")}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mt-1 flex-shrink-0 ml-6"
         >
-          <ArrowLeft className="w-6 h-6" /> Back
-        </Button>
+          <ArrowLeft className="w-4 h-4" />
+          Start Over
+        </button>
       </div>
 
-      <div className="flex-1 flex flex-col pt-16 md:pt-4">
-        <h1 className="text-4xl font-bold text-center mb-4">Step 1: Capture Your Photo</h1>
-        <p className="text-center text-xl text-primary font-medium mb-8 animate-pulse">
-          Make sure your entire body (head to toes) is visible in the frame!
-        </p>
+      {/* ── Video / Captured image ────────────────────────────── */}
+      <div className="flex-1 flex items-center justify-center w-full px-8 min-h-0">
+        {error ? (
+          <div className="flex flex-col items-center gap-6 text-center">
+            <p className="text-destructive text-xl">{error}</p>
+            <Button
+              size="lg"
+              onClick={startCamera}
+              className="text-lg px-10 py-7"
+            >
+              Try Again
+            </Button>
+          </div>
+        ) : capturedImage ? (
+          <img
+            src={capturedImage}
+            alt="Captured"
+            className="max-h-full w-auto rounded-2xl border border-border shadow-2xl"
+          />
+        ) : (
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className="max-h-full w-auto rounded-2xl border border-border shadow-2xl bg-muted"
+          />
+        )}
+        <canvas ref={canvasRef} className="hidden" />
+      </div>
 
-        <div className="max-w-4xl mx-auto w-full flex-1">
-          <Card className="shadow-lg border-2">
-            <CardContent className="p-6">
-              {error ? (
-                <div className="text-center text-destructive p-8">
-                  <p>{error}</p>
-                  <Button onClick={startCamera} className="mt-4">Try Again</Button>
-                </div>
-              ) : capturedImage ? (
-                <div className="space-y-6">
-                  <img src={capturedImage} alt="Captured" className="w-full h-auto max-h-[60vh] object-contain rounded-lg bg-muted" />
-                  <div className="flex justify-center gap-6">
-                    <Button variant="outline" size="lg" className="h-16 px-8 text-xl" onClick={retakePhoto}>Retake Photo</Button>
-                    <Button size="lg" className="h-16 px-12 text-xl shadow-md hover:shadow-lg transition-transform hover:scale-105" onClick={proceedToSelection}>Proceed to Styling</Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-6 relative">
-                  <video ref={videoRef} autoPlay playsInline muted className="w-full h-auto max-h-[60vh] object-contain rounded-lg bg-muted border-2 border-primary/20" />
-
-                  {countdown !== null && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="text-[150px] font-bold text-white drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] animate-pulse">
-                        {countdown}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex justify-center">
-                    {countdown === null ? (
-                      <Button size="lg" className="h-20 px-16 text-2xl rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all bg-primary animate-in zoom-in duration-300" onClick={() => setCountdown(10)}>
-                        📸 Start 10s Timer
-                      </Button>
-                    ) : (
-                      <Button size="lg" variant="destructive" className="h-20 px-16 text-2xl rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all animate-in zoom-in duration-300" onClick={() => setCountdown(null)}>
-                        Cancel Timer
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              )}
-              <canvas ref={canvasRef} className="hidden" />
-            </CardContent>
-          </Card>
-        </div>
+      {/* ── Action buttons ────────────────────────────────────── */}
+      <div className="flex-shrink-0 flex items-center justify-center gap-6 py-8">
+        {capturedImage ? (
+          <>
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={retakePhoto}
+              className="text-lg px-8 py-7 rounded-xl border-border gap-2"
+            >
+              <RefreshCcw className="w-5 h-5" />
+              Retake
+            </Button>
+            <Button
+              size="lg"
+              onClick={proceedToSelection}
+              className="text-lg px-12 py-7 rounded-xl font-semibold gold-glow gap-2"
+            >
+              Continue
+              <ArrowRight className="w-5 h-5" />
+            </Button>
+          </>
+        ) : (
+          <Button
+            size="lg"
+            onClick={capturePhoto}
+            disabled={!!error}
+            className="text-xl px-16 py-8 rounded-full font-semibold gold-glow gap-3"
+          >
+            <Camera className="w-6 h-6" />
+            Capture
+          </Button>
+        )}
       </div>
     </div>
   );

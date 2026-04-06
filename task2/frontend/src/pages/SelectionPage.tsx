@@ -12,6 +12,7 @@ type Background = {
   max_h?: number;
   bg_w?: number;
   bg_h?: number;
+  silhouette_color?: [number, number, number];
 };
 
 type SilhouetteData = {
@@ -25,13 +26,6 @@ const SelectionPage = () => {
   const [backgrounds, setBackgrounds] = useState<Background[]>([]);
   const [previewBgId, setPreviewBgId] = useState<string | null>(null);
 
-  // CSS Filters matching data_manager.py silhouette_color overrides
-  const tintFilters: Record<string, string> = {
-    bg2: "brightness(0.2) sepia(0.8) hue-rotate(330deg) saturate(3)", // (30, 25, 20) brownish
-    bg3: "brightness(0.15) sepia(0.5) hue-rotate(180deg) saturate(2)", // (15, 25, 35) deeper blue-gray
-    bg4: "brightness(0.25) sepia(0.8) hue-rotate(340deg) saturate(4)", // (45, 30, 20) warm brown
-    bg5: "brightness(0.15) sepia(0.2) hue-rotate(240deg) saturate(1)", // (20, 20, 25) neutral dark
-  };
   const [silhouette, setSilhouette] = useState<SilhouetteData | null>(null);
 
   // Track the currently previewed background in the large main view
@@ -65,26 +59,34 @@ const SelectionPage = () => {
 
   const toggleSelection = (id: string) => {
     setSelectedCards((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
     );
   };
 
   const handleProceed = () => {
-    sessionStorage.setItem("selectedBackgroundIds", JSON.stringify(selectedCards));
-    const selectedBackgrounds = backgrounds.filter((bg) =>
-      selectedCards.includes(bg.id)
+    sessionStorage.setItem(
+      "selectedBackgroundIds",
+      JSON.stringify(selectedCards),
     );
-    sessionStorage.setItem("selectedBackgrounds", JSON.stringify(selectedBackgrounds));
+    const selectedBackgrounds = backgrounds.filter((bg) =>
+      selectedCards.includes(bg.id),
+    );
+    sessionStorage.setItem(
+      "selectedBackgrounds",
+      JSON.stringify(selectedBackgrounds),
+    );
 
-    // We intentionally ignore `preComposites` now, 
+    // We intentionally ignore `preComposites` now,
     // relying on ConfirmationPage to do the actual backend heavy-lifting rendering.
     sessionStorage.removeItem("preComposites");
 
     navigate("/confirmation");
   };
 
-  const currentPreviewBg = backgrounds.find(b => b.id === previewBgId);
-  const isCurrentPreviewSelected = previewBgId ? selectedCards.includes(previewBgId) : false;
+  const currentPreviewBg = backgrounds.find((b) => b.id === previewBgId);
+  const isCurrentPreviewSelected = previewBgId
+    ? selectedCards.includes(previewBgId)
+    : false;
 
   return (
     <div className="h-screen bg-background relative flex flex-col p-4 md:p-8">
@@ -102,9 +104,12 @@ const SelectionPage = () => {
 
       {/* Header text */}
       <div className="w-full text-center pt-16 md:pt-0 mb-4 z-10 shrink-0">
-        <h1 className="text-4xl font-bold text-center mb-4">Step 3: Choose Your Scenes</h1>
+        <h1 className="text-4xl font-bold text-center mb-4">
+          Step 3: Choose Your Scenes
+        </h1>
         <p className="text-center text-xl text-primary font-medium mb-8 animate-pulse shadow-sm">
-          Tap the circle on a preview to select it for export. You can choose multiple!
+          Tap the circle on a preview to select it for export. You can choose
+          multiple!
         </p>
       </div>
 
@@ -114,17 +119,17 @@ const SelectionPage = () => {
           <div
             className={`
               relative w-full max-w-5xl max-h-full flex items-center justify-center rounded-2xl p-0 transition-all
-              ${isCurrentPreviewSelected ? 'scale-[1.01]' : ''}
+              ${isCurrentPreviewSelected ? "scale-[1.01]" : ""}
             `}
             onClick={() => toggleSelection(currentPreviewBg.id)}
           >
             {/* The proportionate container ensuring math is accurate */}
             <div
               className={`relative h-full w-full max-h-[60vh] max-w-full rounded-xl overflow-hidden shadow-2xl bg-muted border-4 transition-all
-                ${isCurrentPreviewSelected ? 'border-primary ring-4 ring-primary/20' : 'border-transparent group-hover:border-primary/50'}
+                ${isCurrentPreviewSelected ? "border-primary ring-4 ring-primary/20" : "border-transparent group-hover:border-primary/50"}
               `}
               style={{
-                aspectRatio: `${currentPreviewBg.bg_w || 1920} / ${currentPreviewBg.bg_h || 1080}`
+                aspectRatio: `${currentPreviewBg.bg_w || 1920} / ${currentPreviewBg.bg_h || 1080}`,
               }}
             >
               {/* Background Layer */}
@@ -141,19 +146,31 @@ const SelectionPage = () => {
                 const pos = currentPreviewBg.positions?.[0] || [bw / 2, bh];
                 const mw = currentPreviewBg.max_w;
                 const mh = currentPreviewBg.max_h;
+                const tint = currentPreviewBg.silhouette_color || [0, 0, 0];
+                const tintCss = `rgb(${tint[0]}, ${tint[1]}, ${tint[2]})`;
+                const silhouetteUrl = `http://localhost:8000${silhouette.url}`;
+                const widthPct = mw ? `${(mw / bw) * 100}%` : "30%";
+                const heightPct = mh ? `${(mh / bh) * 100}%` : "60%";
 
                 return (
-                  <img
-                    src={`http://localhost:8000${silhouette.url}`}
-                    alt="My Silhouette"
-                    className="absolute object-contain object-bottom pointer-events-none transition-all duration-500"
+                  <div
+                    aria-label="My Silhouette"
+                    className="absolute pointer-events-none transition-all duration-500"
                     style={{
                       left: `${(pos[0] / bw) * 100}%`,
                       top: `${(pos[1] / bh) * 100}%`,
-                      transform: 'translate(-50%, -100%)',
-                      maxWidth: mw ? `${(mw / bw) * 100}%` : '100%',
-                      maxHeight: mh ? `${(mh / bh) * 100}%` : '100%',
-                      filter: tintFilters[currentPreviewBg.id] || "brightness(0.2)"
+                      transform: "translate(-50%, -100%)",
+                      width: widthPct,
+                      height: heightPct,
+                      backgroundColor: tintCss,
+                      WebkitMaskImage: `url(${silhouetteUrl})`,
+                      maskImage: `url(${silhouetteUrl})`,
+                      WebkitMaskRepeat: "no-repeat",
+                      maskRepeat: "no-repeat",
+                      WebkitMaskPosition: "center bottom",
+                      maskPosition: "center bottom",
+                      WebkitMaskSize: "contain",
+                      maskSize: "contain",
                     }}
                   />
                 );
@@ -182,7 +199,9 @@ const SelectionPage = () => {
           </div>
         ) : (
           <div className="w-full max-w-4xl aspect-[4/3] bg-muted/50 rounded-2xl animate-pulse flex items-center justify-center">
-            <span className="text-muted-foreground text-xl">Loading preview...</span>
+            <span className="text-muted-foreground text-xl">
+              Loading preview...
+            </span>
           </div>
         )}
       </div>
@@ -211,8 +230,8 @@ const SelectionPage = () => {
                 <div
                   className={`
                       relative w-40 h-30 flex-shrink-0 rounded-lg overflow-hidden border-4 transition-all duration-300
-                      ${selected ? 'border-primary ring-2 ring-primary/30' : 'border-transparent group-hover:border-primary/50'}
-                      ${isPreviewing ? 'shadow-lg scale-105' : 'opacity-70 group-hover:opacity-100'}
+                      ${selected ? "border-primary ring-2 ring-primary/30" : "border-transparent group-hover:border-primary/50"}
+                      ${isPreviewing ? "shadow-lg scale-105" : "opacity-70 group-hover:opacity-100"}
                     `}
                 >
                   <img
@@ -231,7 +250,9 @@ const SelectionPage = () => {
                     </div>
                   )}
                 </div>
-                <span className={`text-sm font-medium ${isPreviewing ? 'text-primary scale-110 mt-1 transition-transform font-bold' : 'text-muted-foreground group-hover:text-foreground'}`}>
+                <span
+                  className={`text-sm font-medium ${isPreviewing ? "text-primary scale-110 mt-1 transition-transform font-bold" : "text-muted-foreground group-hover:text-foreground"}`}
+                >
                   {bg.title}
                 </span>
               </div>

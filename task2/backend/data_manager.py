@@ -22,6 +22,19 @@ I = 1
 # Cache for auto-sampled silhouette colours  (bg_id -> (R, G, B))
 _sampled_color_cache: Dict[str, tuple] = {}
 
+
+def _normalize_rgb(color: tuple) -> tuple:
+    """Normalize RGB values to 8-bit ints for stable image APIs."""
+    r, g, b = color[:3]
+    r_i = int(round(float(r)))
+    g_i = int(round(float(g)))
+    b_i = int(round(float(b)))
+    return (
+        max(0, min(255, r_i)),
+        max(0, min(255, g_i)),
+        max(0, min(255, b_i)),
+    )
+
 BACKGROUNDS: Dict[str, Dict] = {
     # "bg1": {
     #     "id": "bg1",
@@ -276,6 +289,8 @@ class SessionManager:
                 silhouette_color = sample_silhouette_color(str(path))
                 _sampled_color_cache[bg_id] = silhouette_color
                 logger.info(f"Auto-sampled silhouette colour for {bg_id}: {silhouette_color}")
+        else:
+            silhouette_color = _normalize_rgb(silhouette_color)
 
         return {
             "path": path,

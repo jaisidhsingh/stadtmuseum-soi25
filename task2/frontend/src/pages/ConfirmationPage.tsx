@@ -1,14 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { X, ZoomIn, ArrowLeft } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -19,13 +13,18 @@ type CompositeItem = {
   url: string; // The fully qualified URL returned from backend
 };
 
+type ShareInfo = {
+  shareUrl: string;
+  expiresAt: string;
+};
+
 const ConfirmationPage = () => {
   const navigate = useNavigate();
   const [compositedItems, setCompositedItems] = useState<CompositeItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [email, setEmail] = useState("");
-  const [showSuccess, setShowSuccess] = useState(false);
   const [enlargedImage, setEnlargedImage] = useState<CompositeItem | null>(null);
+  const [shareInfo, setShareInfo] = useState<ShareInfo | null>(null);
+  const [isCreatingShare, setIsCreatingShare] = useState(false);
 
   useEffect(() => {
     const silhouetteDataStr = sessionStorage.getItem("silhouetteData");
@@ -103,47 +102,42 @@ const ConfirmationPage = () => {
     setCompositedItems(updatedItems);
   };
 
-  const handleSendEmail = async () => {
-    if (!email) {
-      toast({
-        title: "Email required",
-        description: "Please enter your email address",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const handleCreateShare = async () => {
     if (compositedItems.length === 0) {
       toast({
-        title: "No selections",
-        description: "Please keep at least one image to send",
+        title: "No images",
+        description: "Generate at least one composition first.",
         variant: "destructive",
       });
       return;
     }
 
+    setIsCreatingShare(true);
     try {
-      const res = await fetch("http://localhost:8000/send-email", {
+      const res = await fetch("http://localhost:8000/share/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: email,
           ids: compositedItems.map((item) => item.id),
+          ttl_minutes: 30,
         }),
       });
-
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.detail || "Email failed");
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Failed to create share link");
       }
 
-      setShowSuccess(true);
+      const data = await res.json();
+      setShareInfo({ shareUrl: data.share_url, expiresAt: data.expires_at });
     } catch (e: unknown) {
       toast({
-        title: "Error",
-        description: e instanceof Error ? e.message : "Failed to send email.",
+        title: "Share link failed",
+        description:
+          e instanceof Error ? e.message : "Could not create QR share link.",
         variant: "destructive",
       });
+    } finally {
+      setIsCreatingShare(false);
     }
   };
 
@@ -160,11 +154,6 @@ const ConfirmationPage = () => {
     sessionStorage.removeItem("capturedImage");
     sessionStorage.removeItem("silhouetteStyles");
     navigate("/");
-  };
-
-  const handleSuccessClose = () => {
-    setShowSuccess(false);
-    handleStartOver();
   };
 
   return (
@@ -184,7 +173,7 @@ const ConfirmationPage = () => {
       <div className="text-center w-full pt-16 md:pt-4 mb-8">
         <h1 className="text-4xl font-bold mb-2">Step 4: Confirm & Export</h1>
         <p className="text-xl text-primary font-medium animate-pulse">
-          Review your composited images before sending them to your email.
+          Review your composited images and export them to a QR share link.
         </p>
       </div>
 
@@ -243,51 +232,56 @@ const ConfirmationPage = () => {
           </div>
         )}
 
-        {/* Email input and send button */}
+        {/* QR export and session actions */}
         {!isProcessing && compositedItems.length > 0 && (
-          <div className="flex flex-col md:flex-row items-center justify-center gap-6 pt-12 border-t w-full max-w-4xl mx-auto">
-            <span className="text-lg text-muted-foreground font-semibold">
-              {compositedItems.length} image(s) selected
-            </span>
-            <Input
-              type="email"
-              placeholder="Enter your email address to receive photos"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="max-w-md h-16 text-lg px-6 rounded-xl shadow-inner border-2"
-            />
-            <Button
-              size="lg"
-              className="h-16 px-10 text-xl font-bold rounded-xl shadow-lg hover:shadow-xl transition-all"
-              onClick={handleSendEmail}
-              disabled={compositedItems.length === 0}
-            >
-              Send {compositedItems.length} Photos
-            </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              className="h-16 px-8 text-xl rounded-xl ml-auto"
-              onClick={handleStartOver}
-            >
-              Start Over
-            </Button>
+          <div className="grid grid-cols-1 gap-8 pt-12 border-t w-full max-w-6xl mx-auto">
+            <div className="flex flex-col gap-4">
+              <span className="text-lg text-muted-foreground font-semibold">
+                {compositedItems.length} image(s) selected
+              </span>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  onClick={handleCreateShare}
+                  disabled={isCreatingShare || compositedItems.length === 0}
+                  className="h-16 px-10 text-xl font-bold rounded-xl shadow-lg hover:shadow-xl transition-all"
+                >
+                  {isCreatingShare
+                    ? "Creating QR Export..."
+                    : "Export to QR Code"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="h-16 px-8 text-xl rounded-xl"
+                  onClick={handleStartOver}
+                >
+                  Start Over
+                </Button>
+              </div>
+
+              {shareInfo && (
+                <Card className="p-4 w-full max-w-sm">
+                  <div className="flex flex-col items-center gap-3">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(shareInfo.shareUrl)}`}
+                      alt="Share QR Code"
+                      className="w-56 h-56"
+                    />
+                    <p className="text-xs text-muted-foreground text-center break-all">
+                      {shareInfo.shareUrl}
+                    </p>
+                    <p className="text-xs text-muted-foreground text-center">
+                      Expires: {new Date(shareInfo.expiresAt).toLocaleString()}
+                    </p>
+                  </div>
+                </Card>
+              )}
+            </div>
           </div>
         )}
       </div>
-
-      {/* Success Dialog */}
-      <Dialog open={showSuccess} onOpenChange={handleSuccessClose}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Success!</DialogTitle>
-          </DialogHeader>
-          <p>Your beautiful images have been sent to {email}</p>
-          <Button onClick={handleSuccessClose} className="mt-4">
-            Start Over
-          </Button>
-        </DialogContent>
-      </Dialog>
 
       {/* Enlarge Dialog */}
       <Dialog open={!!enlargedImage} onOpenChange={() => setEnlargedImage(null)}>

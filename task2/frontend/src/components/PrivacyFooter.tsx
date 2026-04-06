@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
 const PrivacyFooter = () => {
@@ -25,8 +31,8 @@ const PrivacyFooter = () => {
                 We do not store your original photo after processing.
               </p>
               <p>
-                Your email will only be used to send you your selected images.
-                We do not share your information with third parties.
+                QR share links are temporary and expire automatically. Expired
+                share files are deleted from the server.
               </p>
               <p>
                 All processing is done securely and your data is handled in
@@ -50,13 +56,13 @@ const PrivacyFooter = () => {
             </DialogHeader>
             <div className="space-y-4 text-sm text-muted-foreground">
               <p>
-                By using this exhibit, you agree to let us process your image
-                for artistic purposes.
+                By using this exhibit, you agree to let us process your image for
+                artistic purposes.
               </p>
               <p>
-                The generated artwork is for personal use only. You may share
-                your artwork on social media with proper attribution to the
-                museum and Lotte Reiniger.
+                The generated artwork is for personal use only. You may share your
+                artwork on social media with proper attribution to the museum and
+                Lotte Reiniger.
               </p>
               <p>
                 The museum reserves the right to use anonymized, aggregated data
