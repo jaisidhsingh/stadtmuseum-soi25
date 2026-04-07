@@ -220,6 +220,14 @@ def flip_link(link_data):
     return flipped_link
 
 
+def get_angle_between_links(link1_vec, link2_vec):
+    # Assume image y as x and image x as y for angle calculation
+    angle1 = np.degrees(np.arctan2(link1_vec[0], link1_vec[1]))
+    angle2 = np.degrees(np.arctan2(link2_vec[0], link2_vec[1]))
+    angle = (angle1 - angle2) % 360
+    return angle
+
+
 def adjust_arm(links_dict, keypoints_dict, arm="right"):
     elbow_angle = None
     upper_arm_key = f"{arm}_upper_arm"
@@ -235,34 +243,46 @@ def adjust_arm(links_dict, keypoints_dict, arm="right"):
             - keypoints_dict[forearm_key]["dst_pt1"]
         )
 
-        # Assume image y as x and image x as y for angle calculation
-        upper_arm_angle = np.degrees(np.arctan2(upper_arm_vec[0], upper_arm_vec[1]))
-        forearm_angle = np.degrees(np.arctan2(forearm_vec[0], forearm_vec[1]))
-
-        elbow_angle = (upper_arm_angle - forearm_angle) % 360
+        elbow_angle = get_angle_between_links(upper_arm_vec, forearm_vec)
 
         if (elbow_angle > 180 and links_dict[forearm_key]["direction"] == "r") or (
             elbow_angle < 180 and links_dict[forearm_key]["direction"] == "l"
         ):
             links_dict[upper_arm_key] = flip_link(links_dict[upper_arm_key])
             links_dict[forearm_key] = flip_link(links_dict[forearm_key])
+            if f"{arm}_hand" in links_dict:
+                links_dict[f"{arm}_hand"] = flip_link(links_dict[f"{arm}_hand"])
 
     return elbow_angle
 
 
 def adjust_leg(links_dict, keypoints_dict, leg="right"):
+    flip = False
+
     if f"{leg}_foot" in keypoints_dict:
         foot_vec = np.array(keypoints_dict[f"{leg}_foot"]["dst_pt2"]) - np.array(
             keypoints_dict[f"{leg}_foot"]["dst_pt1"]
         )
-        if (foot_vec[0] > 0 and links_dict[f"{leg}_foot"]["direction"] == "l") or (
+        if f"{leg}_calf" in keypoints_dict:
+            calf_vec = np.array(keypoints_dict[f"{leg}_calf"]["dst_pt1"]) - np.array(
+                keypoints_dict[f"{leg}_calf"]["dst_pt2"]
+            )
+            heel_angle = get_angle_between_links(calf_vec, foot_vec)
+            if (heel_angle > 180 and links_dict[f"{leg}_foot"]["direction"] == "r") or (
+                heel_angle < 180 and links_dict[f"{leg}_foot"]["direction"] == "l"
+            ):
+                flip = True
+        elif (foot_vec[0] > 0 and links_dict[f"{leg}_foot"]["direction"] == "l") or (
             foot_vec[0] < 0 and links_dict[f"{leg}_foot"]["direction"] == "r"
         ):
-            links_dict[f"{leg}_foot"] = flip_link(links_dict[f"{leg}_foot"])
-            if f"{leg}_thigh" in links_dict:
-                links_dict[f"{leg}_thigh"] = flip_link(links_dict[f"{leg}_thigh"])
-            if f"{leg}_calf" in links_dict:
-                links_dict[f"{leg}_calf"] = flip_link(links_dict[f"{leg}_calf"])
+            flip = True
+
+    if flip:
+        links_dict[f"{leg}_foot"] = flip_link(links_dict[f"{leg}_foot"])
+        if f"{leg}_thigh" in links_dict:
+            links_dict[f"{leg}_thigh"] = flip_link(links_dict[f"{leg}_thigh"])
+        if f"{leg}_calf" in links_dict:
+            links_dict[f"{leg}_calf"] = flip_link(links_dict[f"{leg}_calf"])
 
 
 def adjust_link_direction(links_dict, keypoints_dict):
