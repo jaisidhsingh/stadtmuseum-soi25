@@ -1,7 +1,10 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Camera, RefreshCcw, ArrowRight, ArrowLeft } from "lucide-react";
+import { t } from "@/lib/localization";
+import { Camera, RefreshCcw, ArrowRight, LogOut } from "lucide-react";
+
+const COUNTDOWN_SECONDS = 5;
 
 const CameraPage = () => {
   const navigate = useNavigate();
@@ -9,6 +12,9 @@ const CameraPage = () => {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = React.useState<MediaStream | null>(null);
   const [capturedImage, setCapturedImage] = React.useState<string | null>(null);
+  const [countdownSeconds, setCountdownSeconds] = React.useState<number | null>(
+    null,
+  );
   const [error, setError] = React.useState<string | null>(null);
 
   const startCamera = React.useCallback(async () => {
@@ -22,7 +28,12 @@ const CameraPage = () => {
       }
       setError(null);
     } catch (err) {
-      setError("Unable to access camera. Please grant camera permissions.");
+      setError(
+        t(
+          "Unable to access camera. Please grant camera permissions.",
+          "Kein Kamerazugriff. Bitte Kamera-Berechtigung erteilen.",
+        ),
+      );
       console.error("Camera error:", err);
     }
   }, []);
@@ -43,7 +54,7 @@ const CameraPage = () => {
     };
   }, []);
 
-  const capturePhoto = () => {
+  const capturePhoto = React.useCallback(() => {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
@@ -57,9 +68,39 @@ const CameraPage = () => {
         stopCamera();
       }
     }
+  }, [stopCamera]);
+
+  const startCountdown = () => {
+    if (error || capturedImage || countdownSeconds !== null) {
+      return;
+    }
+    setCountdownSeconds(COUNTDOWN_SECONDS);
   };
 
+  React.useEffect(() => {
+    if (countdownSeconds === null) {
+      return;
+    }
+
+    if (countdownSeconds === 0) {
+      setCountdownSeconds(null);
+      capturePhoto();
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setCountdownSeconds((previousValue) =>
+        previousValue === null ? null : previousValue - 1,
+      );
+    }, 1000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [capturePhoto, countdownSeconds]);
+
   const retakePhoto = () => {
+    setCountdownSeconds(null);
     setCapturedImage(null);
     startCamera();
   };
@@ -71,8 +112,24 @@ const CameraPage = () => {
     }
   };
 
+  const handleExitSession = async () => {
+    try {
+      await fetch("http://localhost:8000/clear", { method: "POST" });
+    } catch (error) {
+      console.error("Failed to clear backend session", error);
+    }
+
+    sessionStorage.removeItem("selectedBackgroundIds");
+    sessionStorage.removeItem("selectedBackgrounds");
+    sessionStorage.removeItem("preComposites");
+    sessionStorage.removeItem("silhouetteData");
+    sessionStorage.removeItem("capturedImage");
+    sessionStorage.removeItem("silhouetteStyles");
+    navigate("/");
+  };
+
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden">
+    <div className="h-full min-h-0 exhibit-shell flex flex-col overflow-hidden overflow-x-hidden">
       {/* ── Top bar ──────────────────────────────────────────── */}
       <div className="flex-shrink-0 px-8 pt-5 pb-4 flex items-start justify-between">
         <div>
@@ -80,24 +137,66 @@ const CameraPage = () => {
             className="text-xs font-semibold uppercase tracking-widest mb-1"
             style={{ color: "hsl(var(--film-blue))", opacity: 0.7 }}
           >
-            Step 1 of 4
+            {t("Step 1 of 4", "Schritt 1 von 4")}
           </p>
           <h1 className="text-2xl font-bold text-foreground">
-            {capturedImage ? "Looking good!" : "Take Your Photo"}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
             {capturedImage
-              ? "Happy with your photo? Continue — or retake if you'd like."
-              : "Stand facing the camera, then tap Capture when you're ready."}
+              ? t("Looking good!", "Sieht gut aus!")
+              : t("Take Your Photo", "Foto aufnehmen")}
+          </h1>
+          <p className="mt-0.5 text-sm text-muted-foreground md:text-base">
+            {capturedImage
+              ? t(
+                  "Happy with your photo? Continue or retake if you want.",
+                  "Zufrieden mit dem Foto? Weiter oder erneut aufnehmen.",
+                )
+              : t(
+                  "Stand in front of the camera, then tap Capture.",
+                  "Stelle dich vor die Kamera und tippe dann auf Aufnehmen.",
+                )}
           </p>
         </div>
-        <button
-          onClick={() => navigate("/")}
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mt-1 flex-shrink-0 ml-6"
+        <Button
+          variant="outline"
+          size="xl"
+          onClick={handleExitSession}
+          className="ml-6 flex-shrink-0 border-film-red/40 bg-white/80 text-film-red hover:bg-film-red/10 hover:text-film-red"
         >
-          <ArrowLeft className="w-4 h-4" />
-          Start Over
-        </button>
+          <LogOut className="w-5 h-5" />
+          {t("Exit Session", "Sitzung beenden")}
+        </Button>
+      </div>
+
+      <div
+        className={`mx-8 mb-3 min-h-[122px] rounded-2xl border-2 p-4 md:p-5 ${capturedImage ? "border-film-green/35 bg-film-green/10" : "border-film-blue/35 bg-film-blue/10"}`}
+      >
+        <p
+          className={`text-lg font-bold md:text-2xl ${capturedImage ? "text-film-green" : "text-film-blue"}`}
+        >
+          {capturedImage
+            ? t("Photo captured.", "Foto aufgenommen.")
+            : t(
+                "Important: Take a full-body photo.",
+                "Wichtig: Bitte ein Ganzkoerperfoto aufnehmen.",
+              )}
+        </p>
+        <p className="mt-1 text-sm font-medium text-foreground/90 md:text-base">
+          {capturedImage
+            ? t(
+                "If framing looks off, tap Retake before continuing.",
+                "Falls der Bildausschnitt nicht passt, tippe vor dem Fortfahren auf Erneut aufnehmen.",
+              )
+            : t(
+                "Step back until your full body is visible from head to feet.",
+                "Bitte so weit zurueckgehen, bis der ganze Koerper von Kopf bis Fuss sichtbar ist.",
+              )}
+        </p>
+        <p className="mt-2 inline-flex rounded-full border border-film-green/30 bg-film-green/10 px-3 py-1 text-sm font-semibold text-film-green md:text-base">
+          {t(
+            "You can retake your photo anytime.",
+            "Du kannst dein Foto jederzeit erneut aufnehmen.",
+          )}
+        </p>
       </div>
 
       {/* ── Video / Captured image ────────────────────────────── */}
@@ -106,27 +205,36 @@ const CameraPage = () => {
           <div className="flex flex-col items-center gap-6 text-center">
             <p className="text-destructive text-xl">{error}</p>
             <Button
-              size="lg"
+              size="xl"
               onClick={startCamera}
-              className="text-lg px-10 py-7"
+              className="px-10 py-4 text-base md:text-lg"
             >
-              Try Again
+              {t("Try Again", "Erneut versuchen")}
             </Button>
           </div>
         ) : capturedImage ? (
           <img
             src={capturedImage}
-            alt="Captured"
+            alt={t("Captured image", "Aufgenommenes Bild")}
             className="max-h-full w-auto rounded-2xl border border-border shadow-2xl"
           />
         ) : (
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="max-h-full w-auto rounded-2xl border border-border shadow-2xl bg-muted"
-          />
+          <div className="relative max-h-full w-auto">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="max-h-full w-auto rounded-2xl border border-border shadow-2xl bg-muted"
+            />
+            {countdownSeconds !== null ? (
+              <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/30">
+                <p className="text-8xl font-bold text-white drop-shadow-lg">
+                  {countdownSeconds}
+                </p>
+              </div>
+            ) : null}
+          </div>
         )}
         <canvas ref={canvasRef} className="hidden" />
       </div>
@@ -136,32 +244,37 @@ const CameraPage = () => {
         {capturedImage ? (
           <>
             <Button
-              size="lg"
+              size="xl"
               variant="outline"
               onClick={retakePhoto}
-              className="text-lg px-8 py-7 rounded-xl border-border gap-2"
+              className="px-8 py-4 text-base md:text-lg rounded-xl border-border gap-2"
             >
               <RefreshCcw className="w-5 h-5" />
-              Retake
+              {t("Retake", "Erneut aufnehmen")}
             </Button>
             <Button
-              size="lg"
+              size="xl"
               onClick={proceedToSelection}
-              className="text-lg px-12 py-7 rounded-xl font-semibold gold-glow gap-2"
+              className="px-12 py-4 text-base text-white md:text-lg rounded-xl font-semibold cta-step-2 gap-2"
             >
-              Continue
+              {t("Continue", "Weiter")}
               <ArrowRight className="w-5 h-5" />
             </Button>
           </>
         ) : (
           <Button
-            size="lg"
-            onClick={capturePhoto}
-            disabled={!!error}
-            className="text-xl px-16 py-8 rounded-full font-semibold gold-glow gap-3"
+            size="xl"
+            onClick={startCountdown}
+            disabled={!!error || countdownSeconds !== null}
+            className="rounded-full px-14 py-4 text-base text-white font-semibold md:text-lg cta-step-1 gap-3"
           >
             <Camera className="w-6 h-6" />
-            Capture
+            {countdownSeconds !== null
+              ? t(
+                  `Capturing in ${countdownSeconds}...`,
+                  `Aufnahme in ${countdownSeconds}...`,
+                )
+              : t("Capture", "Aufnehmen")}
           </Button>
         )}
       </div>

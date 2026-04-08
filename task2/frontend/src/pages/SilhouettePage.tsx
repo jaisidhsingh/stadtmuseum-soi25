@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft } from "lucide-react";
+import { t } from "@/lib/localization";
+import { ArrowLeft, LogOut } from "lucide-react";
 
 type ImageResource = {
   id: string;
@@ -21,19 +22,22 @@ type CharacterSelections = {
 
 type PartGroup = {
   id: keyof CharacterSelections;
-  label: string;
+  labelEn: string;
+  labelDe: string;
   fallbacks: string[];
 };
 
 const PART_GROUPS: PartGroup[] = [
   {
     id: "hat",
-    label: "Head Accessories",
+    labelEn: "Head Accessories",
+    labelDe: "Kopf-Accessoires",
     fallbacks: ["hat_thumbnail.png", "hat.png", "head.png"],
   },
   {
     id: "arms",
-    label: "Arms",
+    labelEn: "Arms",
+    labelDe: "Arme",
     fallbacks: [
       "arms_thumbnail.png",
       "right_forearm.png",
@@ -43,7 +47,8 @@ const PART_GROUPS: PartGroup[] = [
   },
   {
     id: "legs",
-    label: "Legs",
+    labelEn: "Legs",
+    labelDe: "Beine",
     fallbacks: [
       "legs_thumbnail.png",
       "right_calf.png",
@@ -53,7 +58,8 @@ const PART_GROUPS: PartGroup[] = [
   },
   {
     id: "feet",
-    label: "Feet",
+    labelEn: "Feet",
+    labelDe: "Fuesse",
     fallbacks: ["feet_thumbnail.png", "right_foot.png", "left_foot.png"],
   },
 ];
@@ -82,6 +88,7 @@ const SilhouettePage = () => {
   });
 
   const isProcessing = isLoadingOriginal || isLoadingWarped;
+  const selectedCount = Object.values(selections).filter(Boolean).length;
 
   // Derive API payload parts
   const selectedParts = Object.entries(selections)
@@ -154,8 +161,11 @@ const SilhouettePage = () => {
         console.error("Error fetching original:", error);
         if (!cancelled) {
           toast({
-            title: "Processing Failed",
-            description: "Make sure the backend is running.",
+            title: t("Processing failed", "Verarbeitung fehlgeschlagen"),
+            description: t(
+              "Make sure the backend is running.",
+              "Bitte pruefe, ob das Backend laeuft.",
+            ),
             variant: "destructive",
           });
         }
@@ -232,17 +242,44 @@ const SilhouettePage = () => {
     }
   };
 
+  const handleExitSession = async () => {
+    try {
+      await fetch("http://localhost:8000/clear", { method: "POST" });
+    } catch (error) {
+      console.error("Failed to clear backend session", error);
+    }
+
+    sessionStorage.removeItem("selectedBackgroundIds");
+    sessionStorage.removeItem("selectedBackgrounds");
+    sessionStorage.removeItem("preComposites");
+    sessionStorage.removeItem("silhouetteData");
+    sessionStorage.removeItem("capturedImage");
+    sessionStorage.removeItem("silhouetteStyles");
+    navigate("/");
+  };
+
   return (
-    <div className="min-h-screen bg-background relative flex flex-col md:flex-row gap-8 p-4 pt-20 md:p-8 md:pt-8 w-full">
+    <div className="h-full min-h-0 exhibit-shell relative flex w-full flex-col gap-8 overflow-hidden overflow-x-hidden p-4 pt-20 md:flex-row md:p-8 md:pt-8">
       {/* Top Bar with Back Button */}
       <div className="absolute top-4 left-4 md:top-8 md:left-8 z-20">
         <Button
           variant="outline"
-          size="lg"
-          className="h-14 px-6 text-lg rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2 bg-background/80 backdrop-blur-sm"
+          size="xl"
+          className="h-14 px-6 text-base md:text-lg rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2 bg-background/80 backdrop-blur-sm"
           onClick={() => navigate("/camera")}
         >
-          <ArrowLeft className="w-6 h-6" /> Re-take Photo
+          <ArrowLeft className="w-6 h-6" />{" "}
+          {t("Re-take Photo", "Foto erneut aufnehmen")}
+        </Button>
+      </div>
+      <div className="absolute top-4 right-4 md:top-8 md:right-8 z-20">
+        <Button
+          variant="outline"
+          size="xl"
+          className="h-14 px-6 text-base md:text-lg rounded-xl border-film-red/40 bg-white/80 text-film-red hover:bg-film-red/10 hover:text-film-red"
+          onClick={handleExitSession}
+        >
+          <LogOut className="w-5 h-5" /> {t("Exit Session", "Sitzung beenden")}
         </Button>
       </div>
 
@@ -251,40 +288,88 @@ const SilhouettePage = () => {
         {isProcessing && (
           <div className="absolute inset-0 bg-background/50 flex flex-col items-center justify-center z-10 backdrop-blur-sm">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-            <p className="text-lg font-medium">Applying styles...</p>
+            <p className="text-lg font-medium">
+              {t("Applying styles...", "Stile werden angewendet...")}
+            </p>
           </div>
         )}
 
         {previewImage ? (
           <img
             src={previewImage}
-            alt="Segmented Silhouette"
+            alt={t("Segmented silhouette", "Segmentierte Silhouette")}
             className="max-h-[80vh] w-auto object-contain rounded-lg shadow-lg"
           />
         ) : capturedImage ? (
           <img
             src={capturedImage}
-            alt="Captured Silhouette"
+            alt={t("Captured silhouette", "Aufgenommene Silhouette")}
             className="max-h-[80vh] w-auto object-contain rounded-lg shadow-lg opacity-50 grayscale"
           />
         ) : (
-          <p className="text-muted-foreground">Loading image...</p>
+          <p className="text-muted-foreground">
+            {t("Loading image...", "Bild wird geladen...")}
+          </p>
         )}
       </div>
 
       {/* Right Half: Style Options */}
       <div className="w-full md:w-[500px] flex flex-col h-full shrink-0 z-10 pt-4 md:pt-0">
-        <h2 className="text-4xl font-bold mb-2">Step 2: Stylize</h2>
-        <p className="text-lg text-primary font-medium mb-6 animate-pulse">
-          Tap the thumbnails below to apply character styles.
+        <h2 className="text-4xl font-bold mb-2">
+          {t("Step 2: Stylize", "Schritt 2: Silhouette gestalten")}
+        </h2>
+        <p className="text-base md:text-lg text-primary font-medium mb-3 animate-pulse">
+          {t(
+            "Tap the thumbnails below to apply character styles.",
+            "Tippe auf die Miniaturen, um Figuren-Stile anzuwenden.",
+          )}
         </p>
 
-        <ScrollArea className="flex-1 pr-4 -mr-4 pb-20">
+        <div className="mb-4 rounded-xl border border-film-green/30 bg-film-green/10 p-4">
+          <p className="text-base font-semibold text-film-green md:text-lg">
+            {t("What to do here", "Was du hier machst")}
+          </p>
+          <ul className="mt-2 space-y-1 text-sm text-foreground/90 md:text-base">
+            <li>
+              {t(
+                "1. Choose a body part row.",
+                "1. Eine Koerperteil-Reihe waehlen.",
+              )}
+            </li>
+            <li>
+              {t(
+                "2. Tap a character thumbnail.",
+                "2. Eine Figuren-Miniatur antippen.",
+              )}
+            </li>
+            <li>
+              {t(
+                "3. Watch your silhouette update live.",
+                "3. Silhouette live in der Vorschau ansehen.",
+              )}
+            </li>
+          </ul>
+          <p className="mt-3 inline-flex rounded-full border border-film-blue/30 bg-film-blue/10 px-3 py-1 text-sm font-semibold text-film-blue md:text-base">
+            {selectedCount > 0
+              ? t(
+                  `${selectedCount} style group(s) selected.`,
+                  `${selectedCount} Stil-Gruppe(n) ausgewaehlt.`,
+                )
+              : t(
+                  "No style selected yet. Start with any row.",
+                  "Noch kein Stil ausgewaehlt. Beginne mit einer beliebigen Reihe.",
+                )}
+          </p>
+        </div>
+
+        <ScrollArea className="flex-1 pr-4 -mr-4 pb-8">
           <div className="space-y-8">
             {PART_GROUPS.map((group) => (
               <div key={group.id} className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-2xl font-semibold">{group.label}</h3>
+                  <h3 className="text-2xl font-semibold">
+                    {t(group.labelEn, group.labelDe)}
+                  </h3>
                 </div>
 
                 <ScrollArea className="w-full whitespace-nowrap pb-4">
@@ -307,7 +392,7 @@ const SilhouettePage = () => {
                         </span>
                       </div>
                       <span className="text-sm font-medium text-muted-foreground">
-                        None
+                        {t("None", "Keine")}
                       </span>
 
                       {/* Selected indicator */}
@@ -351,7 +436,7 @@ const SilhouettePage = () => {
                           <div className="absolute inset-0 p-2 flex items-center justify-center">
                             <img
                               src={initialThumbUrl}
-                              alt={`${char} ${group.label}`}
+                              alt={`${char} ${t(group.labelEn, group.labelDe)}`}
                               className="max-w-full max-h-full object-contain drop-shadow-md"
                               data-fallback-index="0"
                               onError={(e) => {
@@ -409,14 +494,14 @@ const SilhouettePage = () => {
           </div>
         </ScrollArea>
 
-        <div className="pt-6 mt-auto border-t bg-background">
+        <div className="mt-4 pt-4">
           <Button
-            size="lg"
-            className="w-full text-lg h-14"
+            size="xl"
+            className="h-14 cta-step-3 w-full text-base text-white md:text-lg"
             onClick={handleNext}
             disabled={!displayResource || isProcessing}
           >
-            Continue to Backgrounds
+            {t("Continue to Backgrounds", "Weiter zu Hintergruenden")}
           </Button>
         </div>
       </div>

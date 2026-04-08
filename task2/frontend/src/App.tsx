@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import StartPage from "./pages/StartPage";
 import CameraPage from "./pages/CameraPage";
 import SilhouettePage from "./pages/SilhouettePage";
@@ -15,23 +15,24 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const AppContent = () => {
-  const location = useLocation();
   // Show footer on all pages
   const showFooter = true;
 
   return (
-    <>
-      <Routes>
-        <Route path="/" element={<StartPage />} />
-        <Route path="/camera" element={<CameraPage />} />
-        <Route path="/test-input" element={<TestInputPage />} />
-        <Route path="/silhouette" element={<SilhouettePage />} />
-        <Route path="/selection" element={<SelectionPage />} />
-        <Route path="/confirmation" element={<ConfirmationPage />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+    <div className="app-shell min-h-screen exhibit-shell flex flex-col overflow-hidden">
+      <main className="flex-1 min-h-0">
+        <Routes>
+          <Route path="/" element={<StartPage />} />
+          <Route path="/camera" element={<CameraPage />} />
+          <Route path="/test-input" element={<TestInputPage />} />
+          <Route path="/silhouette" element={<SilhouettePage />} />
+          <Route path="/selection" element={<SelectionPage />} />
+          <Route path="/confirmation" element={<ConfirmationPage />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </main>
       {showFooter && <PrivacyFooter />}
-    </>
+    </div>
   );
 };
 
