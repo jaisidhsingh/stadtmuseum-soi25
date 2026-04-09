@@ -50,6 +50,7 @@ BACKGROUNDS: Dict[str, Dict] = {
         "max_w": 280 // I,
         "max_h": 560 // I,
         "silhouette_color": (30, 25, 20),
+        "title": "unused"
     },
     "bg3": {
         "id": "bg3",
@@ -58,6 +59,7 @@ BACKGROUNDS: Dict[str, Dict] = {
         "max_w": 180 // I,
         "max_h": 360 // I,
         "silhouette_color": (16.1, 10.2, 9.0),
+        "title": "Bells"
     },
     "bg4": {
         "id": "bg4",
@@ -66,6 +68,7 @@ BACKGROUNDS: Dict[str, Dict] = {
         "max_w": 100 // I,
         "max_h": 200 // I,
         "silhouette_color": (45, 30, 20),
+        "title": "unused"
     },
     "bg5": {
         "id": "bg5",
@@ -74,6 +77,7 @@ BACKGROUNDS: Dict[str, Dict] = {
         "max_w": 402 // I,
         "max_h": 636 // I,
         "silhouette_color": (10.6, 10.2, 8.2),
+        "title": "Demons"
     },
     # "bg6": {
     #     "id": "bg6",
@@ -90,6 +94,7 @@ BACKGROUNDS: Dict[str, Dict] = {
         "max_w": 149 // I,
         "max_h": 261 // I,
         "silhouette_color": (0.8, 5.9, 29.4),
+        "title": "Oasis"
     },
     "bg8": {
         "id": "bg8",
@@ -98,6 +103,7 @@ BACKGROUNDS: Dict[str, Dict] = {
         "max_w": 104 // I,
         "max_h": 153 // I,
         "silhouette_color": (5.5, 10.2, 16.9),
+        "title": "Bridge"
     },
     "bg9": {
         "id": "bg9",
@@ -106,6 +112,7 @@ BACKGROUNDS: Dict[str, Dict] = {
         "max_w": 88 // I,
         "max_h": 142 // I,
         "silhouette_color": (1.6, 3.1, 0.8),
+        "title": "Monster"
     },
     # "bg10": {
     #     "id": "bg10",
@@ -122,6 +129,7 @@ BACKGROUNDS: Dict[str, Dict] = {
         "max_w": 107 // I,
         "max_h": 245 // I,
         "silhouette_color": (3.5, 1.6, 3.9),
+        "title": "Lamp"
     },
     # "bg12": {
     #     "id": "bg12",
@@ -138,6 +146,7 @@ BACKGROUNDS: Dict[str, Dict] = {
         "max_w": 375 // I,
         "max_h": 735 // I,
         "silhouette_color": (0, 0, 0),
+        "title": "Halo"
     },
     "bg14": {
         "id": "bg14",
@@ -146,6 +155,7 @@ BACKGROUNDS: Dict[str, Dict] = {
         "max_w": 579 // I,
         "max_h": 1212 // I,
         "silhouette_color": (4.3, 9.0, 3.5),
+        "title": "Tea party"
     },
     "bg15": {
         "id": "bg15",
@@ -154,6 +164,7 @@ BACKGROUNDS: Dict[str, Dict] = {
         "max_w": 303 // I,
         "max_h": 543 // I,
         "silhouette_color": (3.1, 6.3, 2.0),
+        "title": "Palace"
     },
     # "bg16": {
     #     "id": "bg16",
@@ -170,6 +181,7 @@ BACKGROUNDS: Dict[str, Dict] = {
         "max_w": 291 // I,
         "max_h": 726 // I,
         "silhouette_color": (2.4, 7.5, 0.8),
+        "title": "Guards"
     },
     # "bg18": {
     #     "id": "bg18",

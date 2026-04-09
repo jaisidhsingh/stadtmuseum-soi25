@@ -129,6 +129,13 @@ Z_ORDER = [
     "left_hand", "right_hand",
 ]
 
+WIDTH_SCALE_FACTORS = {
+    "Achmed": 0.85,
+    "Caliph": 1.0,
+    "Dinarsade": 1.0,
+    "Pari_Banu": 1.0
+}
+
 
 def expand_parts_list(parts: List[str]) -> List[str]:
     """Expand group names (like 'arms') into individual body parts."""
@@ -788,6 +795,7 @@ def _stylize_from_context(
             links_dict,
             (padded_w, padded_h),
             parts_to_render=parts_list,
+            width_scale_factor=WIDTH_SCALE_FACTORS.get(base_name, 1.0),
             add_hat=should_add_hat,
         )
         final_canvas.alpha_composite(person_sil)
@@ -850,7 +858,7 @@ async def get_backgrounds():
             
         bg_list.append({
             "id": dict_key,  # Use dictionary key directly so bg2..bg21 are unique
-            "title": bg_info["filename"].split(".")[0].capitalize(),
+            "title": bg_info["title"],
             "url": f"/backgrounds/{bg_info['filename']}",
             "positions": bg_info.get("positions", [[w//2, h]]),
             "max_w": bg_info.get("max_w", w),
