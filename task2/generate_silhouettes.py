@@ -52,15 +52,19 @@ def get_head_middle_keypoint(keypoints):
     return head_middle_keypoint
 
 
-def get_hat_keypoints(head_dict, offset_const=0.8):
+def get_hat_keypoints(head_dict, head_direction, offset_const=0.8):
     dst_pt1 = head_dict["dst_pt1"]
     dst_pt2 = head_dict["dst_pt2"]
 
     dx = dst_pt2[0] - dst_pt1[0]
     dy = dst_pt2[1] - dst_pt1[1]
 
-    perp_dx = dy
-    perp_dy = -dx
+    if head_direction == "r":
+        perp_dx = dy
+        perp_dy = -dx
+    else:
+        perp_dx = -dy
+        perp_dy = dx
 
     length = np.sqrt(perp_dx**2 + perp_dy**2)
     perp_dx /= length
@@ -152,7 +156,10 @@ def parse_keypoints(
         keypoints_dict[link_name]["dst_pt2"] = dst_pt2
 
     if add_hat and "head" in keypoints_dict:
-        keypoints_dict["hat"] = get_hat_keypoints(keypoints_dict["head"])
+        head_direction = get_head_direction(keypoints)
+        keypoints_dict["hat"] = get_hat_keypoints(
+            keypoints_dict["head"], head_direction
+        )
 
     torso_length = keypoints_dict["torso"]["length"]
 
