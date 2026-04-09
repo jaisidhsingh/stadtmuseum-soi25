@@ -16,3 +16,5 @@ wheels/
 task2/backend/ComfyUI
 task2/backend/outputs
 tmpclaude*
+
+task1/.venv
