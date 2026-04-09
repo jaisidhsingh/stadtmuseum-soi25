@@ -34,7 +34,7 @@ def get_hand_middle_keypoint(hand_keypoints):
     idxes = [1, 5, 9, 13, 17]
     visible_keypoints = [hand_keypoints[i] for i in idxes if hand_keypoints[i][2] != 0]
     visible_keypoints = np.array(visible_keypoints)
-    hand_middle_keypoint = np.mean(visible_keypoints[:, :2], axis=0)
+    hand_middle_keypoint = np.mean(visible_keypoints, axis=0)
     return hand_middle_keypoint
 
 
@@ -43,11 +43,11 @@ def get_head_middle_keypoint(keypoints):
     l_ear_keypoint = keypoints[18]
 
     if r_ear_keypoint[2] != 0 and l_ear_keypoint[2] != 0:
-        head_middle_keypoint = (r_ear_keypoint[:2] + l_ear_keypoint[:2]) / 2
+        head_middle_keypoint = (r_ear_keypoint + l_ear_keypoint) / 2
     elif r_ear_keypoint[2] != 0:
-        head_middle_keypoint = r_ear_keypoint[:2]
+        head_middle_keypoint = r_ear_keypoint
     else:
-        head_middle_keypoint = l_ear_keypoint[:2]
+        head_middle_keypoint = l_ear_keypoint
 
     return head_middle_keypoint
 
@@ -98,7 +98,7 @@ def parse_keypoints(
     for link_name, link_data in links_dict.items():
         # Calculate the head middle keypoint based on the visible ear keypoints
         if link_name == "neck":
-            dst_pt1 = keypoints[link_data["pt1_idx"]][:2]
+            dst_pt1 = keypoints[link_data["pt1_idx"]]
             if head_middle_keypoint is None:
                 head_middle_keypoint = get_head_middle_keypoint(keypoints)
             dst_pt2 = head_middle_keypoint
@@ -115,28 +115,35 @@ def parse_keypoints(
             if nose_keypoint[2] != 0:
                 # If only one ear is visible, use nose keypoint as dst_pt2
                 if r_ear_keypoint[2] == 0 or l_ear_keypoint[2] == 0:
-                    dst_pt2 = keypoints[link_data["pt2_idx"]][:2]
+                    dst_pt2 = keypoints[link_data["pt2_idx"]]
                 # Otherwise, use the ear keypoint in the direction the head is facing
                 else:
                     head_direction = get_head_direction(keypoints)
                     if head_direction == "r":
-                        dst_pt2 = l_ear_keypoint[:2]
+                        dst_pt2 = l_ear_keypoint
                     else:
-                        dst_pt2 = r_ear_keypoint[:2]
+                        dst_pt2 = r_ear_keypoint
             # TODO Implement logic for when the person is facing away from the camera
             # Otherwise, person is facing away from the camera, defaulting to right ear keypoint
             else:
-                dst_pt2 = r_ear_keypoint[:2]
+                dst_pt2 = r_ear_keypoint
 
         elif link_name == "right_hand":
-            dst_pt1 = right_hand_keypoints[0][:2]
+            dst_pt1 = right_hand_keypoints[0]
             dst_pt2 = get_hand_middle_keypoint(right_hand_keypoints)
         elif link_name == "left_hand":
-            dst_pt1 = left_hand_keypoints[0][:2]
+            dst_pt1 = left_hand_keypoints[0]
             dst_pt2 = get_hand_middle_keypoint(left_hand_keypoints)
         else:
-            dst_pt1 = keypoints[link_data["pt1_idx"]][:2]
-            dst_pt2 = keypoints[link_data["pt2_idx"]][:2]
+            dst_pt1 = keypoints[link_data["pt1_idx"]]
+            dst_pt2 = keypoints[link_data["pt2_idx"]]
+
+        # Skip links with keypoint visibility 0
+        if dst_pt1[2] == 0 or dst_pt2[2] == 0:
+            continue
+
+        dst_pt1 = dst_pt1[:2]
+        dst_pt2 = dst_pt2[:2]
 
         length = np.linalg.norm(dst_pt2 - dst_pt1)
         keypoints_dict[link_name] = {}
@@ -144,7 +151,7 @@ def parse_keypoints(
         keypoints_dict[link_name]["dst_pt1"] = dst_pt1
         keypoints_dict[link_name]["dst_pt2"] = dst_pt2
 
-    if add_hat:
+    if add_hat and "head" in keypoints_dict:
         keypoints_dict["hat"] = get_hat_keypoints(keypoints_dict["head"])
 
     torso_length = keypoints_dict["torso"]["length"]
@@ -213,82 +220,89 @@ def flip_link(link_data):
     return flipped_link
 
 
+def get_angle_between_links(link1_vec, link2_vec):
+    # Assume image y as x and image x as y for angle calculation
+    angle1 = np.degrees(np.arctan2(link1_vec[0], link1_vec[1]))
+    angle2 = np.degrees(np.arctan2(link2_vec[0], link2_vec[1]))
+    angle = (angle1 - angle2) % 360
+    return angle
+
+
+def adjust_arm(links_dict, keypoints_dict, arm="right"):
+    elbow_angle = None
+    upper_arm_key = f"{arm}_upper_arm"
+    forearm_key = f"{arm}_forearm"
+
+    if upper_arm_key in keypoints_dict and forearm_key in keypoints_dict:
+        upper_arm_vec = (
+            keypoints_dict[upper_arm_key]["dst_pt1"]
+            - keypoints_dict[upper_arm_key]["dst_pt2"]
+        )
+        forearm_vec = (
+            keypoints_dict[forearm_key]["dst_pt2"]
+            - keypoints_dict[forearm_key]["dst_pt1"]
+        )
+
+        elbow_angle = get_angle_between_links(upper_arm_vec, forearm_vec)
+
+        if (elbow_angle > 180 and links_dict[forearm_key]["direction"] == "r") or (
+            elbow_angle < 180 and links_dict[forearm_key]["direction"] == "l"
+        ):
+            links_dict[upper_arm_key] = flip_link(links_dict[upper_arm_key])
+            links_dict[forearm_key] = flip_link(links_dict[forearm_key])
+            if f"{arm}_hand" in links_dict:
+                links_dict[f"{arm}_hand"] = flip_link(links_dict[f"{arm}_hand"])
+
+    return elbow_angle
+
+
+def adjust_leg(links_dict, keypoints_dict, leg="right"):
+    flip = False
+
+    if f"{leg}_foot" in keypoints_dict:
+        foot_vec = np.array(keypoints_dict[f"{leg}_foot"]["dst_pt2"]) - np.array(
+            keypoints_dict[f"{leg}_foot"]["dst_pt1"]
+        )
+        if f"{leg}_calf" in keypoints_dict:
+            calf_vec = np.array(keypoints_dict[f"{leg}_calf"]["dst_pt1"]) - np.array(
+                keypoints_dict[f"{leg}_calf"]["dst_pt2"]
+            )
+            heel_angle = get_angle_between_links(calf_vec, foot_vec)
+            if (heel_angle > 180 and links_dict[f"{leg}_foot"]["direction"] == "r") or (
+                heel_angle < 180 and links_dict[f"{leg}_foot"]["direction"] == "l"
+            ):
+                flip = True
+        elif (foot_vec[0] > 0 and links_dict[f"{leg}_foot"]["direction"] == "l") or (
+            foot_vec[0] < 0 and links_dict[f"{leg}_foot"]["direction"] == "r"
+        ):
+            flip = True
+
+    if flip:
+        links_dict[f"{leg}_foot"] = flip_link(links_dict[f"{leg}_foot"])
+        if f"{leg}_thigh" in links_dict:
+            links_dict[f"{leg}_thigh"] = flip_link(links_dict[f"{leg}_thigh"])
+        if f"{leg}_calf" in links_dict:
+            links_dict[f"{leg}_calf"] = flip_link(links_dict[f"{leg}_calf"])
+
+
 def adjust_link_direction(links_dict, keypoints_dict):
     # Process arms
-    # Assume image y as x and image x as y for angle calculation
-    right_upper_arm_vec = np.array(
-        keypoints_dict["right_upper_arm"]["dst_pt1"]
-    ) - np.array(keypoints_dict["right_upper_arm"]["dst_pt2"])
-    right_forearm_vec = np.array(keypoints_dict["right_forearm"]["dst_pt2"]) - np.array(
-        keypoints_dict["right_forearm"]["dst_pt1"]
-    )
-    left_upper_arm_vec = np.array(
-        keypoints_dict["left_upper_arm"]["dst_pt1"]
-    ) - np.array(keypoints_dict["left_upper_arm"]["dst_pt2"])
-    left_forearm_vec = np.array(keypoints_dict["left_forearm"]["dst_pt2"]) - np.array(
-        keypoints_dict["left_forearm"]["dst_pt1"]
-    )
-
-    right_upper_arm_angle = np.degrees(
-        (np.arctan2(right_upper_arm_vec[0], right_upper_arm_vec[1]))
-    )
-    right_forearm_angle = np.degrees(
-        (np.arctan2(right_forearm_vec[0], right_forearm_vec[1]))
-    )
-    left_upper_arm_angle = np.degrees(
-        (np.arctan2(left_upper_arm_vec[0], left_upper_arm_vec[1]))
-    )
-    left_forearm_angle = np.degrees(
-        (np.arctan2(left_forearm_vec[0], left_forearm_vec[1]))
-    )
-
-    right_elbow_angle = (right_upper_arm_angle - right_forearm_angle) % 360
-    left_elbow_angle = (left_upper_arm_angle - left_forearm_angle) % 360
-
-    if (
-        right_elbow_angle > 180 and links_dict["right_forearm"]["direction"] == "r"
-    ) or (right_elbow_angle < 180 and links_dict["right_forearm"]["direction"] == "l"):
-        links_dict["right_upper_arm"] = flip_link(links_dict["right_upper_arm"])
-        links_dict["right_forearm"] = flip_link(links_dict["right_forearm"])
-        links_dict["right_hand"] = flip_link(links_dict["right_hand"])
-
-    if (left_elbow_angle > 180 and links_dict["left_forearm"]["direction"] == "r") or (
-        left_elbow_angle < 180 and links_dict["left_forearm"]["direction"] == "l"
-    ):
-        links_dict["left_upper_arm"] = flip_link(links_dict["left_upper_arm"])
-        links_dict["left_forearm"] = flip_link(links_dict["left_forearm"])
-        links_dict["left_hand"] = flip_link(links_dict["left_hand"])
+    right_elbow_angle = adjust_arm(links_dict, keypoints_dict, "right")
+    left_elbow_angle = adjust_arm(links_dict, keypoints_dict, "left")
 
     # Process torso
-    if (
-        (right_elbow_angle > 180 and left_elbow_angle > 180)
-        and links_dict["torso"]["direction"] == "r"
-        or (right_elbow_angle < 180 and left_elbow_angle < 180)
-        and links_dict["torso"]["direction"] == "l"
-    ):
-        links_dict["torso"] = flip_link(links_dict["torso"])
+    if right_elbow_angle is not None and left_elbow_angle is not None:
+        if (
+            (right_elbow_angle > 180 and left_elbow_angle > 180)
+            and links_dict["torso"]["direction"] == "r"
+            or (right_elbow_angle < 180 and left_elbow_angle < 180)
+            and links_dict["torso"]["direction"] == "l"
+        ):
+            links_dict["torso"] = flip_link(links_dict["torso"])
 
     # Process legs
-    left_foot_vec = np.array(keypoints_dict["left_foot"]["dst_pt2"]) - np.array(
-        keypoints_dict["left_foot"]["dst_pt1"]
-    )
-    right_foot_vec = np.array(keypoints_dict["right_foot"]["dst_pt2"]) - np.array(
-        keypoints_dict["right_foot"]["dst_pt1"]
-    )
-
-    if (left_foot_vec[0] > 0 and links_dict["left_foot"]["direction"] == "l") or (
-        left_foot_vec[0] < 0 and links_dict["left_foot"]["direction"] == "r"
-    ):
-        links_dict["left_thigh"] = flip_link(links_dict["left_thigh"])
-        links_dict["left_calf"] = flip_link(links_dict["left_calf"])
-        links_dict["left_foot"] = flip_link(links_dict["left_foot"])
-
-    if (right_foot_vec[0] > 0 and links_dict["right_foot"]["direction"] == "l") or (
-        right_foot_vec[0] < 0 and links_dict["right_foot"]["direction"] == "r"
-    ):
-        links_dict["right_thigh"] = flip_link(links_dict["right_thigh"])
-        links_dict["right_calf"] = flip_link(links_dict["right_calf"])
-        links_dict["right_foot"] = flip_link(links_dict["right_foot"])
+    adjust_leg(links_dict, keypoints_dict, "right")
+    adjust_leg(links_dict, keypoints_dict, "left")
 
     return links_dict
 
@@ -378,6 +392,9 @@ def generate_silhouette(
     canvas = background_img.copy()
 
     for link_name, link_data in links_dict.items():
+        if link_name not in keypoints_dict:
+            continue
+
         if (link_name == "head" and add_hat) or (link_name == "hat" and not add_hat):
             continue
         src_pt1 = link_data["pt1"]

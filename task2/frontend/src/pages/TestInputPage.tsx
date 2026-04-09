@@ -2,6 +2,7 @@ import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { t } from "@/lib/localization";
 import dummyImage from "../assets/dummy.jpeg";
 
 const TestInputPage = () => {
@@ -37,10 +38,15 @@ const TestInputPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background p-8">
-      <h1 className="text-2xl font-bold text-center mb-4">Test Input</h1>
+    <div className="h-full min-h-0 overflow-auto bg-background p-8">
+      <h1 className="text-2xl font-bold text-center mb-4">
+        {t("Test Input", "Testeingabe")}
+      </h1>
       <p className="text-center text-muted-foreground mb-8">
-        Using predefined test image instead of camera.
+        {t(
+          "Using predefined test image instead of camera.",
+          "Vordefiniertes Testbild statt Kamera wird verwendet.",
+        )}
       </p>
 
       <div className="max-w-2xl mx-auto">
@@ -49,12 +55,12 @@ const TestInputPage = () => {
             <div className="space-y-4">
               <img
                 src={dummyImage}
-                alt="Test Input"
+                alt={t("Test input", "Testeingabe")}
                 className="w-full rounded-lg"
               />
               <div className="flex justify-center gap-4">
                 <Button onClick={proceedToSelection} disabled={!imageBase64}>
-                  Proceed with Test Image
+                  {t("Proceed with Test Image", "Mit Testbild fortfahren")}
                 </Button>
               </div>
             </div>

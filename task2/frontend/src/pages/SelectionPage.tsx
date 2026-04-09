@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Check, ArrowLeft, Circle } from "lucide-react";
+import { t } from "@/lib/localization";
+import { ArrowLeft, Check, Circle, LogOut, X } from "lucide-react";
 
 type Background = {
   id: string;
@@ -25,13 +26,9 @@ const SelectionPage = () => {
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [backgrounds, setBackgrounds] = useState<Background[]>([]);
   const [previewBgId, setPreviewBgId] = useState<string | null>(null);
-
   const [silhouette, setSilhouette] = useState<SilhouetteData | null>(null);
 
-  // Track the currently previewed background in the large main view
-
   useEffect(() => {
-    // Load silhouette from session storage
     const storedSil = sessionStorage.getItem("silhouetteData");
     if (storedSil) {
       setSilhouette(JSON.parse(storedSil));
@@ -39,7 +36,6 @@ const SelectionPage = () => {
       navigate("/camera");
     }
 
-    // Fetch backgrounds
     const fetchBackgrounds = async () => {
       try {
         const res = await fetch("http://localhost:8000/backgrounds");
@@ -47,13 +43,14 @@ const SelectionPage = () => {
           const data = await res.json();
           setBackgrounds(data);
           if (data.length > 0) {
-            setPreviewBgId(data[0].id); // Preview first background by default
+            setPreviewBgId(data[0].id);
           }
         }
-      } catch (e) {
-        console.error("Failed to fetch backgrounds", e);
+      } catch (error) {
+        console.error("Failed to fetch backgrounds", error);
       }
     };
+
     fetchBackgrounds();
   }, [navigate]);
 
@@ -75,213 +72,355 @@ const SelectionPage = () => {
       "selectedBackgrounds",
       JSON.stringify(selectedBackgrounds),
     );
-
-    // We intentionally ignore `preComposites` now,
-    // relying on ConfirmationPage to do the actual backend heavy-lifting rendering.
     sessionStorage.removeItem("preComposites");
-
     navigate("/confirmation");
   };
 
-  const currentPreviewBg = backgrounds.find((b) => b.id === previewBgId);
-  const isCurrentPreviewSelected = previewBgId
-    ? selectedCards.includes(previewBgId)
+  const handleExitSession = async () => {
+    try {
+      await fetch("http://localhost:8000/clear", { method: "POST" });
+    } catch (error) {
+      console.error("Failed to clear backend session", error);
+    }
+
+    sessionStorage.removeItem("selectedBackgroundIds");
+    sessionStorage.removeItem("selectedBackgrounds");
+    sessionStorage.removeItem("preComposites");
+    sessionStorage.removeItem("silhouetteData");
+    sessionStorage.removeItem("capturedImage");
+    sessionStorage.removeItem("silhouetteStyles");
+    navigate("/");
+  };
+
+  const currentPreviewBg = useMemo(
+    () => backgrounds.find((background) => background.id === previewBgId),
+    [backgrounds, previewBgId],
+  );
+
+  const selectedBackgrounds = useMemo(
+    () =>
+      backgrounds.filter((background) => selectedCards.includes(background.id)),
+    [backgrounds, selectedCards],
+  );
+
+  const isCurrentPreviewSelected = currentPreviewBg
+    ? selectedCards.includes(currentPreviewBg.id)
     : false;
 
   return (
-    <div className="h-screen bg-background relative flex flex-col p-4 md:p-8">
-      {/* Top Bar with Back Button */}
-      <div className="absolute top-4 left-4 md:top-8 md:left-8 z-20">
+    <div className="h-full min-h-0 exhibit-shell flex flex-col overflow-hidden overflow-x-hidden px-4 py-2 md:px-8 md:py-4">
+      <div className="mb-3 flex items-center justify-between gap-4">
         <Button
           variant="outline"
-          size="lg"
-          className="h-14 px-6 text-lg rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2 bg-background/80 backdrop-blur-sm"
+          size="xl"
+          className="exhibit-panel gap-2 border-film-blue/20 bg-white/70"
           onClick={() => navigate("/silhouette")}
         >
-          <ArrowLeft className="w-6 h-6" /> Back to Stylize
+          <ArrowLeft className="h-5 w-5" />
+          {t("Back to Silhouette", "Zurueck zur Silhouette")}
         </Button>
-      </div>
-
-      {/* Header text */}
-      <div className="w-full text-center pt-16 md:pt-0 mb-4 z-10 shrink-0">
-        <h1 className="text-4xl font-bold text-center mb-4">
-          Step 3: Choose Your Scenes
-        </h1>
-        <p className="text-center text-xl text-primary font-medium mb-8 animate-pulse shadow-sm">
-          Tap the circle on a preview to select it for export. You can choose
-          multiple!
-        </p>
-      </div>
-
-      {/* Large Main Preview (Top Center) */}
-      <div className="flex-1 min-h-0 flex items-center justify-center mb-6 relative z-10 w-full px-4">
-        {currentPreviewBg && silhouette ? (
-          <div
-            className={`
-              relative w-full max-w-5xl max-h-full flex items-center justify-center rounded-2xl p-0 transition-all
-              ${isCurrentPreviewSelected ? "scale-[1.01]" : ""}
-            `}
-            onClick={() => toggleSelection(currentPreviewBg.id)}
-          >
-            {/* The proportionate container ensuring math is accurate */}
-            <div
-              className={`relative h-full w-full max-h-[60vh] max-w-full rounded-xl overflow-hidden shadow-2xl bg-muted border-4 transition-all
-                ${isCurrentPreviewSelected ? "border-primary ring-4 ring-primary/20" : "border-transparent group-hover:border-primary/50"}
-              `}
-              style={{
-                aspectRatio: `${currentPreviewBg.bg_w || 1920} / ${currentPreviewBg.bg_h || 1080}`,
-              }}
-            >
-              {/* Background Layer */}
-              <img
-                src={`http://localhost:8000${currentPreviewBg.url}`}
-                alt={currentPreviewBg.title}
-                className="absolute inset-0 w-full h-full object-contain pointer-events-none"
-              />
-
-              {/* Silhouette Layer */}
-              {(() => {
-                const bw = currentPreviewBg.bg_w || 1920;
-                const bh = currentPreviewBg.bg_h || 1080;
-                const pos = currentPreviewBg.positions?.[0] || [bw / 2, bh];
-                const mw = currentPreviewBg.max_w;
-                const mh = currentPreviewBg.max_h;
-                const tint = currentPreviewBg.silhouette_color || [0, 0, 0];
-                const tintCss = `rgb(${tint[0]}, ${tint[1]}, ${tint[2]})`;
-                const silhouetteUrl = `http://localhost:8000${silhouette.url}`;
-                const widthPct = mw ? `${(mw / bw) * 100}%` : "30%";
-                const heightPct = mh ? `${(mh / bh) * 100}%` : "60%";
-
-                return (
-                  <div
-                    aria-label="My Silhouette"
-                    className="absolute pointer-events-none transition-all duration-500"
-                    style={{
-                      left: `${(pos[0] / bw) * 100}%`,
-                      top: `${(pos[1] / bh) * 100}%`,
-                      transform: "translate(-50%, -100%)",
-                      width: widthPct,
-                      height: heightPct,
-                      backgroundColor: tintCss,
-                      WebkitMaskImage: `url(${silhouetteUrl})`,
-                      maskImage: `url(${silhouetteUrl})`,
-                      WebkitMaskRepeat: "no-repeat",
-                      maskRepeat: "no-repeat",
-                      WebkitMaskPosition: "center bottom",
-                      maskPosition: "center bottom",
-                      WebkitMaskSize: "contain",
-                      maskSize: "contain",
-                    }}
-                  />
-                );
-              })()}
-
-              {/* Selection Text overlay instructing to tap */}
-              {!isCurrentPreviewSelected && (
-                <div className="absolute inset-x-0 top-6 text-center opacity-0 hover:opacity-100 transition-opacity pointer-events-none">
-                  <span className="bg-background/80 backdrop-blur px-6 py-2 rounded-full font-medium shadow-lg">
-                    Tap image to select for export
-                  </span>
-                </div>
-              )}
-
-              {/* Radio / Checkmark overlay for selection state */}
-              {isCurrentPreviewSelected ? (
-                <div className="absolute top-4 right-4 bg-primary text-primary-foreground rounded-full p-2 shadow-xl animate-in zoom-in pointer-events-none">
-                  <Check className="w-8 h-8" />
-                </div>
-              ) : (
-                <div className="absolute top-4 right-4 bg-black/40 text-white rounded-full p-2 shadow-xl hover:bg-black/60 transition-colors">
-                  <Circle className="w-8 h-8" />
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="w-full max-w-4xl aspect-[4/3] bg-muted/50 rounded-2xl animate-pulse flex items-center justify-center">
-            <span className="text-muted-foreground text-xl">
-              Loading preview...
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Bottom Horizontal Thumbnails Strip (Native scroll so touch devices can swipe inside it easily) */}
-      <div className="w-full shrink-0 bg-muted/10 rounded-xl p-4 border relative z-10">
-        <div className="w-full overflow-x-auto touch-pan-x snap-x snap-mandatory flex space-x-4 pb-2 items-center custom-scrollbar">
-          {backgrounds.map((bg) => {
-            const selected = selectedCards.includes(bg.id);
-            const isPreviewing = previewBgId === bg.id;
-
-            return (
-              <div
-                key={bg.id}
-                className="snap-start flex flex-col items-center gap-2 group cursor-pointer"
-                onClick={() => {
-                  // If it's already the preview, clicking it toggles selection.
-                  // If it's not the preview, the first click makes it the preview.
-                  if (isPreviewing) {
-                    toggleSelection(bg.id);
-                  } else {
-                    setPreviewBgId(bg.id);
-                  }
-                }}
-              >
-                <div
-                  className={`
-                      relative w-40 h-30 flex-shrink-0 rounded-lg overflow-hidden border-4 transition-all duration-300
-                      ${selected ? "border-primary ring-2 ring-primary/30" : "border-transparent group-hover:border-primary/50"}
-                      ${isPreviewing ? "shadow-lg scale-105" : "opacity-70 group-hover:opacity-100"}
-                    `}
-                >
-                  <img
-                    src={`http://localhost:8000${bg.url}`}
-                    alt={bg.title}
-                    className="w-full h-full object-cover"
-                  />
-                  {/* Radio / Checkmark overlay */}
-                  {selected ? (
-                    <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-1 shadow-sm animate-in zoom-in">
-                      <Check className="w-4 h-4" />
-                    </div>
-                  ) : (
-                    <div className="absolute top-1 right-1 bg-black/40 text-white rounded-full p-1 shadow-sm transition-colors group-hover:bg-black/60">
-                      <Circle className="w-4 h-4" />
-                    </div>
-                  )}
-                </div>
-                <span
-                  className={`text-sm font-medium ${isPreviewing ? "text-primary scale-110 mt-1 transition-transform font-bold" : "text-muted-foreground group-hover:text-foreground"}`}
-                >
-                  {bg.title}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Action Bar (Now static below to prevent overlapping) */}
-      <div className="w-full shrink-0 py-4 flex justify-end items-center z-30 mt-auto border-t">
-        <div className="flex items-center gap-6 bg-background rounded-full shadow-sm p-2 pl-6">
-          <div className="flex flex-col items-end mr-2">
-            <span className="text-xl font-bold text-primary">
-              {selectedCards.length}
-            </span>
-            <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
-              Selected
-            </span>
-          </div>
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <span className="film-tag">{t("Step 3 of 4", "Schritt 3 von 4")}</span>
           <Button
-            size="lg"
-            className="h-16 px-10 text-xl font-bold rounded-xl shadow-lg hover:shadow-xl transition-all"
-            onClick={handleProceed}
-            disabled={selectedCards.length === 0}
+            variant="outline"
+            size="xl"
+            onClick={handleExitSession}
+            className="border-film-red/40 bg-white/80 text-film-red hover:bg-film-red/10 hover:text-film-red"
           >
-            Review & Export
+            <LogOut className="h-5 w-5" />
+            {t("Exit Session", "Sitzung beenden")}
           </Button>
         </div>
       </div>
+
+      <header className="exhibit-panel mb-3 rounded-2xl p-4 md:p-5">
+        <h1 className="exhibit-title text-3xl md:text-5xl">
+          {t("Pick Backgrounds to Share", "Hintergruende zum Teilen waehlen")}
+        </h1>
+        <p className="mt-2 text-base text-foreground/90 md:text-lg">
+          {t(
+            "Choose scenes for your final QR gallery.",
+            "Waehle Szenen fuer deine finale QR-Galerie.",
+          )}
+        </p>
+        <div className="mt-4 grid grid-cols-1 gap-3 text-sm md:grid-cols-3 md:text-base">
+          <div className="rounded-xl border border-film-blue/20 bg-film-blue/10 px-3 py-2 font-medium text-film-blue">
+            {t(
+              "1. Tap thumbnail to preview.",
+              "1. Miniatur antippen fuer Vorschau.",
+            )}
+          </div>
+          <div className="rounded-xl border border-film-green/20 bg-film-green/10 px-3 py-2 font-medium text-film-green">
+            {t(
+              "2. Select scene for QR export.",
+              "2. Szene fuer QR-Export auswaehlen.",
+            )}
+          </div>
+          <div className="rounded-xl border border-film-red/20 bg-film-red/10 px-3 py-2 font-medium text-film-red">
+            {t(
+              "3. Continue to review and share.",
+              "3. Weiter zu Vorschau und Teilen.",
+            )}
+          </div>
+        </div>
+      </header>
+
+      <div className="grid flex-1 min-h-0 grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <section className="exhibit-panel flex min-h-0 flex-col rounded-2xl p-3 md:p-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold md:text-2xl">
+                {t("Live Scene Preview", "Szenen-Vorschau")}
+              </h2>
+              <p className="text-sm text-muted-foreground md:text-base">
+                {t(
+                  "Your moving silhouette stays exactly as designed.",
+                  "Deine bewegte Silhouette bleibt exakt wie gestaltet.",
+                )}
+              </p>
+            </div>
+            <Button
+              size="xl"
+              disabled={!currentPreviewBg}
+              onClick={() =>
+                currentPreviewBg ? toggleSelection(currentPreviewBg.id) : null
+              }
+              className={
+                isCurrentPreviewSelected
+                  ? "bg-film-green text-white hover:bg-film-green/90"
+                  : "cta-step-3 text-white"
+              }
+            >
+              {isCurrentPreviewSelected ? (
+                <>
+                  <Check className="h-5 w-5" />
+                  {t("Selected for QR", "Fuer QR ausgewaehlt")}
+                </>
+              ) : (
+                <>
+                  <Circle className="h-5 w-5" />
+                  {t("Select this scene", "Szene auswaehlen")}
+                </>
+              )}
+            </Button>
+          </div>
+
+          <div className="flex flex-1 min-h-0 items-center justify-center">
+            {currentPreviewBg && silhouette ? (
+              <div className="relative h-full w-full max-h-[50vh] max-w-5xl">
+                <div
+                  className={`relative h-full w-full overflow-hidden rounded-2xl border-4 shadow-2xl transition-all ${isCurrentPreviewSelected ? "border-film-green ring-4 ring-film-green/30" : "border-border"}`}
+                  style={{
+                    aspectRatio: `${currentPreviewBg.bg_w || 1920} / ${currentPreviewBg.bg_h || 1080}`,
+                  }}
+                >
+                  <img
+                    src={`http://localhost:8000${currentPreviewBg.url}`}
+                    alt={currentPreviewBg.title}
+                    className="absolute inset-0 h-full w-full object-contain"
+                  />
+
+                  {(() => {
+                    const bw = currentPreviewBg.bg_w || 1920;
+                    const bh = currentPreviewBg.bg_h || 1080;
+                    const pos = currentPreviewBg.positions?.[0] || [bw / 2, bh];
+                    const mw = currentPreviewBg.max_w;
+                    const mh = currentPreviewBg.max_h;
+                    const tint = currentPreviewBg.silhouette_color || [0, 0, 0];
+                    const tintCss = `rgb(${tint[0]}, ${tint[1]}, ${tint[2]})`;
+                    const silhouetteUrl = `http://localhost:8000${silhouette.url}`;
+                    const widthPct = mw ? `${(mw / bw) * 100}%` : "30%";
+                    const heightPct = mh ? `${(mh / bh) * 100}%` : "60%";
+
+                    return (
+                      <div
+                        aria-label={t("My silhouette", "Meine Silhouette")}
+                        className="absolute pointer-events-none transition-all duration-500"
+                        style={{
+                          left: `${(pos[0] / bw) * 100}%`,
+                          top: `${(pos[1] / bh) * 100}%`,
+                          transform: "translate(-50%, -100%)",
+                          width: widthPct,
+                          height: heightPct,
+                          backgroundColor: tintCss,
+                          WebkitMaskImage: `url(${silhouetteUrl})`,
+                          maskImage: `url(${silhouetteUrl})`,
+                          WebkitMaskRepeat: "no-repeat",
+                          maskRepeat: "no-repeat",
+                          WebkitMaskPosition: "center bottom",
+                          maskPosition: "center bottom",
+                          WebkitMaskSize: "contain",
+                          maskSize: "contain",
+                        }}
+                      />
+                    );
+                  })()}
+
+                  <div className="absolute left-3 top-3 rounded-full bg-black/55 px-4 py-1.5 text-sm font-semibold text-white md:text-base">
+                    {t("Preview", "Vorschau")}: {currentPreviewBg.title}
+                  </div>
+                  <div className="absolute bottom-3 left-3 rounded-full bg-black/55 px-4 py-1.5 text-xs font-medium text-white md:text-sm">
+                    {t(
+                      "Only selected scenes go to QR export.",
+                      "Nur ausgewaehlte Szenen gehen in den QR-Export.",
+                    )}
+                  </div>
+                  <div className="absolute right-3 top-3 rounded-full bg-white/85 p-2 text-foreground shadow-lg">
+                    {isCurrentPreviewSelected ? (
+                      <Check className="h-6 w-6 text-film-green" />
+                    ) : (
+                      <Circle className="h-6 w-6 text-muted-foreground" />
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex aspect-[16/9] w-full max-w-5xl items-center justify-center rounded-2xl bg-muted/60">
+                <span className="text-lg text-muted-foreground">
+                  {t("Loading scene preview...", "Szenen-Vorschau laedt...")}
+                </span>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <aside className="exhibit-panel flex min-h-0 flex-col rounded-2xl p-4 md:p-5">
+          <h2 className="text-xl font-semibold">
+            {t("Export Queue", "Export-Liste")}
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground md:text-base">
+            {t(
+              "Selected scenes become your QR gallery on the next page.",
+              "Ausgewaehlte Szenen erscheinen auf der naechsten QR-Seite.",
+            )}
+          </p>
+
+          <div className="mt-4 rounded-xl border border-film-blue/20 bg-film-blue/10 p-4">
+            <p className="text-3xl font-bold text-film-blue">
+              {selectedCards.length}
+            </p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-film-blue">
+              {t("Selected", "Ausgewaehlt")}
+            </p>
+            <p className="mt-1 text-sm text-foreground/80">
+              {t("of", "von")} {backgrounds.length}{" "}
+              {t("available scenes", "verfuegbaren Szenen")}
+            </p>
+          </div>
+
+          <div className="soft-scroll mt-4 min-h-[120px] max-h-[30vh] space-y-2 overflow-y-auto pr-1">
+            {selectedBackgrounds.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+                {t("No scenes selected yet.", "Noch keine Szenen ausgewaehlt.")}
+              </div>
+            ) : (
+              selectedBackgrounds.map((background) => (
+                <div
+                  key={background.id}
+                  className={`flex items-center justify-between rounded-xl border bg-white/70 px-3 py-2 ${previewBgId === background.id ? "border-film-blue bg-film-blue/10" : ""}`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setPreviewBgId(background.id)}
+                    className="min-w-0 flex-1 pr-2 text-left"
+                  >
+                    <span className="block truncate text-sm font-medium">
+                      {background.title}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {t("Tap to preview", "Antippen fuer Vorschau")}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggleSelection(background.id);
+                    }}
+                    className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                    title={t("Remove from export", "Aus Export entfernen")}
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="mt-4 border-t pt-4">
+            <Button
+              size="xl"
+              className="cta-step-4 w-full font-semibold"
+              onClick={handleProceed}
+              disabled={selectedCards.length === 0}
+            >
+              {t("Continue to review and QR", "Weiter zu Vorschau und QR")}
+            </Button>
+            {selectedCards.length === 0 ? (
+              <p className="mt-2 text-center text-sm text-muted-foreground">
+                {t(
+                  "Select at least one scene to continue.",
+                  "Waehle mindestens eine Szene, um fortzufahren.",
+                )}
+              </p>
+            ) : null}
+          </div>
+        </aside>
+      </div>
+
+      <section className="exhibit-panel mt-3 rounded-2xl p-3 md:p-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold md:text-xl">
+            {t("Scene Strip", "Szenen-Leiste")}
+          </h2>
+          <p className="text-sm text-muted-foreground md:text-base">
+            {t(
+              "Tap to preview, scroll for more.",
+              "Antippen fuer Vorschau, horizontal scrollen fuer mehr.",
+            )}
+          </p>
+        </div>
+        <div className="custom-scrollbar flex w-full snap-x snap-mandatory items-start gap-4 overflow-x-auto pb-2">
+          {backgrounds.map((background) => {
+            const selected = selectedCards.includes(background.id);
+            const isPreviewing = previewBgId === background.id;
+
+            return (
+              <button
+                type="button"
+                key={background.id}
+                className="group snap-start text-left"
+                onClick={() => setPreviewBgId(background.id)}
+              >
+                <div
+                  className={`relative h-28 w-48 overflow-hidden rounded-xl border-4 transition-all duration-200 ${isPreviewing ? "border-film-blue shadow-xl" : "border-transparent opacity-80 group-hover:opacity-100"} ${selected ? "ring-2 ring-film-green/40" : ""}`}
+                >
+                  <img
+                    src={`http://localhost:8000${background.url}`}
+                    alt={background.title}
+                    className="h-full w-full object-cover"
+                  />
+                  {isPreviewing ? (
+                    <span className="absolute left-2 top-2 rounded-full bg-film-blue px-2 py-0.5 text-xs font-semibold text-white">
+                      {t("Preview", "Vorschau")}
+                    </span>
+                  ) : null}
+                  {selected ? (
+                    <span className="absolute right-2 top-2 rounded-full bg-film-green px-2 py-0.5 text-xs font-semibold text-white">
+                      {t("Selected", "Ausgewaehlt")}
+                    </span>
+                  ) : null}
+                </div>
+                <p
+                  className={`mt-1.5 max-w-48 truncate text-sm font-medium ${isPreviewing ? "text-film-blue" : "text-foreground/80"}`}
+                >
+                  {background.title}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+      </section>
     </div>
   );
 };

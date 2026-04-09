@@ -1,0 +1,10 @@
+name,pt1_idx,pt2_idx,pt1_x,pt1_y,pt2_x,pt2_y,direction
+torso,1,8,77,9,58,224,l
+right_upper_arm,2,3,77,21,19,140,l
+right_forearm,3,4,126,33,6,17,l
+right_thigh,9,10,41,32,33,172,l
+right_calf,10,11,22,20,53,206,l
+right_foot,11,22,58,40,22,54,l
+neck,1,-1,33,87,32,3,l
+head,-1,0,60,80,7,79,l
+hat,-1,-1,117,195,95,181,l
