@@ -314,7 +314,7 @@ const SilhouettePage = () => {
       </div>
 
       {/* Right Half: Style Options */}
-      <div className="w-full md:w-[500px] flex flex-col h-full shrink-0 z-10 pt-4 md:pt-0">
+      <div className="w-full md:w-[640px] flex flex-col h-full shrink-0 z-10 pt-4 md:pt-0">
         <h2 className="text-4xl font-bold mb-2">
           {t("Step 2: Stylize", "Schritt 2: Silhouette gestalten")}
         </h2>

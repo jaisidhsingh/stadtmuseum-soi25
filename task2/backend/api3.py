@@ -13,6 +13,7 @@ Key changes from api2:
 import sys
 import json
 import os
+import re
 import tempfile
 import shutil
 import random
@@ -27,7 +28,7 @@ import numpy as np
 import cv2
 import pandas as pd
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -60,7 +61,7 @@ logger = logging.getLogger("API3")
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-OPENPOSE_ROOT = Path(os.environ.get("OPENPOSE_ROOT", r"C:\openpose"))
+OPENPOSE_ROOT = Path(os.environ.get("OPENPOSE_ROOT", r"C:\Users\lr-tech\openpose"))
 BACKEND_DIR = Path(__file__).parent
 OUTPUTS_DIR = BACKEND_DIR / "outputs"
 OUTPUTS_DIR.mkdir(exist_ok=True)
@@ -357,7 +358,8 @@ app = FastAPI(title="SOI API v3", version="3.0.0")
 # Character registry: scan BACKEND_DIR for subfolders containing links/links.csv
 def _list_characters() -> List[str]:
     chars = []
-    for d in sorted(BACKEND_DIR.iterdir()):
+    cutouts_dir = BACKEND_DIR / "cutouts"
+    for d in sorted(cutouts_dir.iterdir()):
         if d.is_dir() and (d / "links" / "links.csv").exists():
             chars.append(d.name)
     return chars
@@ -370,13 +372,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def normalize_duplicate_slashes(request: Request, call_next):
+    """Normalize duplicate slashes in request path so legacy QR links keep working."""
+    path = request.scope.get("path", "")
+    if "//" in path:
+        request.scope["path"] = re.sub(r"/{2,}", "/", path)
+    return await call_next(request)
+
 app.mount("/outputs", StaticFiles(directory=str(OUTPUTS_DIR)), name="outputs")
 BACKGROUNDS_DIR.mkdir(exist_ok=True)
 app.mount("/backgrounds", StaticFiles(directory=str(BACKGROUNDS_DIR)), name="backgrounds")
 
 # Mount character links for frontend previews
 for char_name in _list_characters():
-    char_links_dir = BACKEND_DIR / char_name / "links"
+    char_links_dir = BACKEND_DIR / "cutouts" / char_name / "links"
     if char_links_dir.is_dir():
         app.mount(f"/assets/{char_name}", StaticFiles(directory=str(char_links_dir)), name=f"assets_{char_name}")
 
@@ -428,9 +439,18 @@ def get_segmenter() -> BodyPartSegmenter:
 def get_links(base_name: str) -> dict:
     """Load (and cache) links_dict for a character base_name."""
     if base_name not in _engine_cache:
-        links_dir = BACKEND_DIR / base_name / "links"
-        if not links_dir.is_dir():
-            raise FileNotFoundError(f"Character directory not found: {links_dir}")
+        preferred_dir = BACKEND_DIR / "cutouts" / base_name / "links"
+        legacy_dir = BACKEND_DIR / base_name / "links"
+
+        if preferred_dir.is_dir():
+            links_dir = preferred_dir
+        elif legacy_dir.is_dir():
+            links_dir = legacy_dir
+        else:
+            raise FileNotFoundError(
+                f"Character directory not found: {preferred_dir}"
+            )
+
         logger.info(f"Loading links for '{base_name}' from {links_dir}")
         _engine_cache[base_name] = load_links(links_dir)
     return _engine_cache[base_name]
@@ -560,8 +580,8 @@ def _cleanup_expired_share_tokens() -> None:
 
 def _public_base_url() -> str:
     # Set this in production/tunnel mode, e.g. https://soi.yourdomain.com
-    return "https://castle-ordered-coast-kept.trycloudflare.com"
-    return os.environ.get("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/")
+    default_public_url = "https://stuart-drill-introduced-peers.trycloudflare.com"
+    return os.environ.get("PUBLIC_BASE_URL", default_public_url).rstrip("/")
 
 
 def _build_share_url(token: str) -> str:
@@ -732,21 +752,22 @@ def _stylize_from_context(
         runtime["base_sil"] = person_alpha_pil.convert("RGBA").resize((canvas_w, canvas_h))
     base_sil = runtime["base_sil"]
 
-    if parts_list is not None:
-        expanded = expand_parts_list(parts_list)
+    # if parts_list is not None:
+    #     expanded = expand_parts_list(parts_list)
 
-        non_hat_parts = set(links_dict.keys()) - {"hat"}
-        if set(expanded) >= non_hat_parts:
-            final_canvas = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
-        else:
-            erasure_mask = BodyPartSegmenter.build_erasure_mask(
-                label_map,
-                expanded,
-                pose_keypoints=runtime.get("pose_kp_arr"),
-            )
-            final_canvas = BodyPartSegmenter.erase_parts_from_silhouette(base_sil, erasure_mask)
-    else:
-        final_canvas = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
+    #     non_hat_parts = set(links_dict.keys()) - {"hat"}
+    #     if set(expanded) >= non_hat_parts:
+    #         final_canvas = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
+    #     else:
+    #         erasure_mask = BodyPartSegmenter.build_erasure_mask(
+    #             label_map,
+    #             expanded,
+    #             pose_keypoints=runtime.get("pose_kp_arr"),
+    #         )
+    #         final_canvas = BodyPartSegmenter.erase_parts_from_silhouette(base_sil, erasure_mask)
+    # else:
+    #     final_canvas = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
+    final_canvas = base_sil.copy()
 
     pad = 400
     padded_w = canvas_w + 2 * pad

@@ -20,7 +20,7 @@ const CameraPage = () => {
   const startCamera = React.useCallback(async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: 1280, height: 720 },
+        video: { facingMode: "user", width: 1920, height: 1080 },
       });
       setStream(mediaStream);
       if (videoRef.current) {
@@ -216,7 +216,7 @@ const CameraPage = () => {
           <img
             src={capturedImage}
             alt={t("Captured image", "Aufgenommenes Bild")}
-            className="max-h-full w-auto rounded-2xl border border-border shadow-2xl"
+            className="max-h-[calc(60vh)] w-auto rounded-2xl border border-border shadow-2xl"
           />
         ) : (
           <div className="relative max-h-full w-auto">
@@ -225,7 +225,7 @@ const CameraPage = () => {
               autoPlay
               playsInline
               muted
-              className="max-h-full w-auto rounded-2xl border border-border shadow-2xl bg-muted"
+              className="max-h-[calc(60vh)] w-auto rounded-2xl border border-border shadow-2xl bg-muted"
             />
             {countdownSeconds !== null ? (
               <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/30">
