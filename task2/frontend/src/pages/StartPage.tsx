@@ -96,7 +96,7 @@ const StartPage = () => {
 
   return (
     <div className="h-full min-h-0 exhibit-shell flex flex-col overflow-hidden overflow-x-hidden">
-      <section className="relative min-h-[48vh] overflow-hidden md:min-h-[54vh]">
+      <section className="relative min-h-[56vh] overflow-hidden md:min-h-[62vh]">
         <img
           src={topImage}
           alt={t(

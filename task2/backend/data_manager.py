@@ -43,21 +43,21 @@ BACKGROUNDS: Dict[str, Dict] = {
     #     "max_w": 500 // I,
     #     "max_h": 1000 // I,
     # },
-    "bg2": {
-        "id": "bg2",
-        "filename": "bg2.jpg",  # Reusing same file for now as placebo
-        "positions": [[480, 690]],
-        "max_w": 280 // I,
-        "max_h": 560 // I,
-        "silhouette_color": (30, 25, 20),
-        "title": "unused"
-    },
+    # "bg2": {
+    #     "id": "bg2",
+    #     "filename": "bg2.jpg",  # Reusing same file for now as placebo
+    #     "positions": [[480, 690]],
+    #     "max_w": 280 // I,
+    #     "max_h": 560 // I,
+    #     "silhouette_color": (30, 25, 20),
+    #     "title": "unused"
+    # },
     "bg3": {
         "id": "bg3",
         "filename": "bg3.jpg",
-        "positions": [[560, 590]],
+        "positions": [[450, 590]],
         "max_w": 180 // I,
-        "max_h": 360 // I,
+        "max_h": 330 // I,
         "silhouette_color": (16.1, 10.2, 9.0),
         "title": "Bells"
     },
@@ -73,7 +73,7 @@ BACKGROUNDS: Dict[str, Dict] = {
     "bg5": {
         "id": "bg5",
         "filename": "bg5.jpg",
-        "positions": [[850, 796]],
+        "positions": [[706, 796]],
         "max_w": 402 // I,
         "max_h": 636 // I,
         "silhouette_color": (10.6, 10.2, 8.2),
@@ -99,7 +99,7 @@ BACKGROUNDS: Dict[str, Dict] = {
     "bg8": {
         "id": "bg8",
         "filename": "bg8.png",
-        "positions": [[394, 468]],
+        "positions": [[394, 490]],
         "max_w": 104 // I,
         "max_h": 153 // I,
         "silhouette_color": (5.5, 10.2, 16.9),
@@ -142,27 +142,27 @@ BACKGROUNDS: Dict[str, Dict] = {
     "bg13": {
         "id": "bg13",
         "filename": "bg13.png",
-        "positions": [[1245, 1602]],
-        "max_w": 375 // I,
-        "max_h": 735 // I,
+        "positions": [[463, 596]],
+        "max_w": 139 // I,
+        "max_h": 273 // I,
         "silhouette_color": (0, 0, 0),
         "title": "Halo"
     },
     "bg14": {
         "id": "bg14",
         "filename": "bg14.png",
-        "positions": [[1194, 1827]],
-        "max_w": 579 // I,
-        "max_h": 1212 // I,
+        "positions": [[444, 680]],
+        "max_w": 215 // I,
+        "max_h": 451 // I,
         "silhouette_color": (4.3, 9.0, 3.5),
         "title": "Tea party"
     },
     "bg15": {
         "id": "bg15",
         "filename": "bg15.png",
-        "positions": [[1347, 1773]],
-        "max_w": 303 // I,
-        "max_h": 543 // I,
+        "positions": [[501, 660]],
+        "max_w": 112 // I,
+        "max_h": 202 // I,
         "silhouette_color": (3.1, 6.3, 2.0),
         "title": "Palace"
     },
@@ -177,9 +177,9 @@ BACKGROUNDS: Dict[str, Dict] = {
     "bg17": {
         "id": "bg17",
         "filename": "bg17.png",
-        "positions": [[1125, 1554]],
-        "max_w": 291 // I,
-        "max_h": 726 // I,
+        "positions": [[414, 544]],
+        "max_w": 108 // I,
+        "max_h": 270 // I,
         "silhouette_color": (2.4, 7.5, 0.8),
         "title": "Guards"
     },

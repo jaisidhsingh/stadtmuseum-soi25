@@ -167,75 +167,79 @@ const CameraPage = () => {
         </Button>
       </div>
 
-      <div
-        className={`mx-8 mb-3 min-h-[122px] rounded-2xl border-2 p-4 md:p-5 ${capturedImage ? "border-film-green/35 bg-film-green/10" : "border-film-blue/35 bg-film-blue/10"}`}
-      >
-        <p
-          className={`text-lg font-bold md:text-2xl ${capturedImage ? "text-film-green" : "text-film-blue"}`}
-        >
-          {capturedImage
-            ? t("Photo captured.", "Foto aufgenommen.")
-            : t(
-                "Important: Take a full-body photo.",
-                "Wichtig: Bitte ein Ganzkoerperfoto aufnehmen.",
-              )}
-        </p>
-        <p className="mt-1 text-sm font-medium text-foreground/90 md:text-base">
-          {capturedImage
-            ? t(
-                "If framing looks off, tap Retake before continuing.",
-                "Falls der Bildausschnitt nicht passt, tippe vor dem Fortfahren auf Erneut aufnehmen.",
-              )
-            : t(
-                "Step back until your full body is visible from head to feet.",
-                "Bitte so weit zurueckgehen, bis der ganze Koerper von Kopf bis Fuss sichtbar ist.",
-              )}
-        </p>
-        <p className="mt-2 inline-flex rounded-full border border-film-green/30 bg-film-green/10 px-3 py-1 text-sm font-semibold text-film-green md:text-base">
-          {t(
-            "You can retake your photo anytime.",
-            "Du kannst dein Foto jederzeit erneut aufnehmen.",
-          )}
-        </p>
-      </div>
-
-      {/* ── Video / Captured image ────────────────────────────── */}
-      <div className="flex-1 flex items-center justify-center w-full px-8 min-h-0">
-        {error ? (
-          <div className="flex flex-col items-center gap-6 text-center">
-            <p className="text-destructive text-xl">{error}</p>
-            <Button
-              size="xl"
-              onClick={startCamera}
-              className="px-10 py-4 text-base md:text-lg"
+      {/* ── Instruction + Camera two-column area ───────────────── */}
+      <div className="flex-1 min-h-0 w-full px-8 pb-2">
+        <div className="grid h-full min-h-0 grid-cols-1 gap-4 lg:grid-cols-[500px_minmax(0,1fr)]">
+          <div
+            className={`exhibit-panel min-h-[200px] rounded-2xl border-2 p-4 md:p-5 ${capturedImage ? "border-film-green/35 bg-film-green/10" : "border-film-blue/35 bg-film-blue/10"}`}
+          >
+            <p
+              className={`text-lg font-bold md:text-2xl ${capturedImage ? "text-film-green" : "text-film-blue"}`}
             >
-              {t("Try Again", "Erneut versuchen")}
-            </Button>
+              {capturedImage
+                ? t("Photo captured.", "Foto aufgenommen.")
+                : t(
+                    "Important: Take a full-body photo.",
+                    "Wichtig: Bitte ein Ganzkoerperfoto aufnehmen.",
+                  )}
+            </p>
+            <p className="mt-1 text-sm font-medium text-foreground/90 md:text-base">
+              {capturedImage
+                ? t(
+                    "If framing looks off, tap Retake before continuing.",
+                    "Falls der Bildausschnitt nicht passt, tippe vor dem Fortfahren auf Erneut aufnehmen.",
+                  )
+                : t(
+                    "Step back until your full body is visible from head to feet.",
+                    "Bitte so weit zurueckgehen, bis der ganze Koerper von Kopf bis Fuss sichtbar ist.",
+                  )}
+            </p>
+            <p className="mt-2 inline-flex rounded-full border border-film-green/30 bg-film-green/10 px-3 py-1 text-sm font-semibold text-film-green md:text-base">
+              {t(
+                "You can retake your photo anytime.",
+                "Du kannst dein Foto jederzeit erneut aufnehmen.",
+              )}
+            </p>
           </div>
-        ) : capturedImage ? (
-          <img
-            src={capturedImage}
-            alt={t("Captured image", "Aufgenommenes Bild")}
-            className="max-h-[calc(60vh)] w-auto rounded-2xl border border-border shadow-2xl"
-          />
-        ) : (
-          <div className="relative max-h-full w-auto">
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="max-h-[calc(60vh)] w-auto rounded-2xl border border-border shadow-2xl bg-muted"
-            />
-            {countdownSeconds !== null ? (
-              <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/30">
-                <p className="text-8xl font-bold text-white drop-shadow-lg">
-                  {countdownSeconds}
-                </p>
+
+          <div className="exhibit-panel relative flex min-h-[320px] items-center justify-center overflow-hidden rounded-2xl p-4">
+            {error ? (
+              <div className="flex flex-col items-center gap-6 text-center">
+                <p className="text-destructive text-xl">{error}</p>
+                <Button
+                  size="xl"
+                  onClick={startCamera}
+                  className="px-10 py-4 text-base md:text-lg"
+                >
+                  {t("Try Again", "Erneut versuchen")}
+                </Button>
               </div>
-            ) : null}
+            ) : capturedImage ? (
+              <img
+                src={capturedImage}
+                alt={t("Captured image", "Aufgenommenes Bild")}
+                className="max-h-full w-auto rounded-2xl border border-border shadow-2xl"
+              />
+            ) : (
+              <div className="relative max-h-full w-auto">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="max-h-full w-auto rounded-2xl border border-border shadow-2xl bg-muted"
+                />
+                {countdownSeconds !== null ? (
+                  <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/30">
+                    <p className="text-8xl font-bold text-white drop-shadow-lg">
+                      {countdownSeconds}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            )}
           </div>
-        )}
+        </div>
         <canvas ref={canvasRef} className="hidden" />
       </div>
 

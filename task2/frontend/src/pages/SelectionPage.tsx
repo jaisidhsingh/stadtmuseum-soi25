@@ -133,39 +133,40 @@ const SelectionPage = () => {
         </div>
       </div>
 
-      <header className="exhibit-panel mb-3 rounded-2xl p-4 md:p-5">
-        <h1 className="exhibit-title text-3xl md:text-5xl">
-          {t("Pick Backgrounds to Share", "Hintergruende zum Teilen waehlen")}
-        </h1>
-        <p className="mt-2 text-base text-foreground/90 md:text-lg">
-          {t(
-            "Choose scenes for your final QR gallery.",
-            "Waehle Szenen fuer deine finale QR-Galerie.",
-          )}
-        </p>
-        <div className="mt-4 grid grid-cols-1 gap-3 text-sm md:grid-cols-3 md:text-base">
-          <div className="rounded-xl border border-film-blue/20 bg-film-blue/10 px-3 py-2 font-medium text-film-blue">
+      <div className="grid flex-1 min-h-0 grid-cols-1 gap-3 xl:grid-cols-[340px_minmax(0,1fr)_360px]">
+        <aside className="exhibit-panel flex min-h-0 flex-col rounded-2xl p-4 md:p-5">
+          <h1 className="exhibit-title text-2xl md:text-3xl">
+            {t("Pick Backgrounds to Share", "Hintergruende zum Teilen waehlen")}
+          </h1>
+          <p className="mt-2 text-sm text-foreground/90 md:text-base">
             {t(
-              "1. Tap thumbnail to preview.",
-              "1. Miniatur antippen fuer Vorschau.",
+              "Choose scenes for your final QR gallery.",
+              "Waehle Szenen fuer deine finale QR-Galerie.",
             )}
-          </div>
-          <div className="rounded-xl border border-film-green/20 bg-film-green/10 px-3 py-2 font-medium text-film-green">
-            {t(
-              "2. Select scene for QR export.",
-              "2. Szene fuer QR-Export auswaehlen.",
-            )}
-          </div>
-          <div className="rounded-xl border border-film-red/20 bg-film-red/10 px-3 py-2 font-medium text-film-red">
-            {t(
-              "3. Continue to review and share.",
-              "3. Weiter zu Vorschau und Teilen.",
-            )}
-          </div>
-        </div>
-      </header>
+          </p>
 
-      <div className="grid flex-1 min-h-0 grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="mt-4 space-y-2 text-sm md:text-base">
+            <div className="rounded-xl border border-film-blue/20 bg-film-blue/10 px-3 py-2 font-medium text-film-blue">
+              {t(
+                "1. Tap thumbnail to preview.",
+                "1. Miniatur antippen fuer Vorschau.",
+              )}
+            </div>
+            <div className="rounded-xl border border-film-green/20 bg-film-green/10 px-3 py-2 font-medium text-film-green">
+              {t(
+                "2. Select scene for QR export.",
+                "2. Szene fuer QR-Export auswaehlen.",
+              )}
+            </div>
+            <div className="rounded-xl border border-film-red/20 bg-film-red/10 px-3 py-2 font-medium text-film-red">
+              {t(
+                "3. Continue to review and share.",
+                "3. Weiter zu Vorschau und Teilen.",
+              )}
+            </div>
+          </div>
+        </aside>
+
         <section className="exhibit-panel flex min-h-0 flex-col rounded-2xl p-3 md:p-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -207,72 +208,95 @@ const SelectionPage = () => {
 
           <div className="flex flex-1 min-h-0 items-center justify-center">
             {currentPreviewBg && silhouette ? (
-              <div className="relative h-full w-full max-h-[50vh] max-w-5xl">
-                <div
-                  className={`relative h-full w-full overflow-hidden rounded-2xl border-4 shadow-2xl transition-all ${isCurrentPreviewSelected ? "border-film-green ring-4 ring-film-green/30" : "border-border"}`}
-                  style={{
-                    aspectRatio: `${currentPreviewBg.bg_w || 1920} / ${currentPreviewBg.bg_h || 1080}`,
-                  }}
-                >
-                  <img
-                    src={`http://localhost:8000${currentPreviewBg.url}`}
-                    alt={currentPreviewBg.title}
-                    className="absolute inset-0 h-full w-full object-contain"
-                  />
+              <div className="relative flex w-full max-w-6xl justify-center">
+                {(() => {
+                  const bw = currentPreviewBg.bg_w || 1920;
+                  const bh = currentPreviewBg.bg_h || 1080;
+                  const maxWidthFromHeightVh = (58 * bw) / bh;
 
-                  {(() => {
-                    const bw = currentPreviewBg.bg_w || 1920;
-                    const bh = currentPreviewBg.bg_h || 1080;
-                    const pos = currentPreviewBg.positions?.[0] || [bw / 2, bh];
-                    const mw = currentPreviewBg.max_w;
-                    const mh = currentPreviewBg.max_h;
-                    const tint = currentPreviewBg.silhouette_color || [0, 0, 0];
-                    const tintCss = `rgb(${tint[0]}, ${tint[1]}, ${tint[2]})`;
-                    const silhouetteUrl = `http://localhost:8000${silhouette.url}`;
-                    const widthPct = mw ? `${(mw / bw) * 100}%` : "30%";
-                    const heightPct = mh ? `${(mh / bh) * 100}%` : "60%";
-
-                    return (
-                      <div
-                        aria-label={t("My silhouette", "Meine Silhouette")}
-                        className="absolute pointer-events-none transition-all duration-500"
-                        style={{
-                          left: `${(pos[0] / bw) * 100}%`,
-                          top: `${(pos[1] / bh) * 100}%`,
-                          transform: "translate(-50%, -100%)",
-                          width: widthPct,
-                          height: heightPct,
-                          backgroundColor: tintCss,
-                          WebkitMaskImage: `url(${silhouetteUrl})`,
-                          maskImage: `url(${silhouetteUrl})`,
-                          WebkitMaskRepeat: "no-repeat",
-                          maskRepeat: "no-repeat",
-                          WebkitMaskPosition: "center bottom",
-                          maskPosition: "center bottom",
-                          WebkitMaskSize: "contain",
-                          maskSize: "contain",
-                        }}
+                  return (
+                    <div
+                      className={`relative h-full w-full overflow-hidden rounded-2xl border-4 shadow-2xl transition-all ${isCurrentPreviewSelected ? "border-film-green ring-4 ring-film-green/30" : "border-border"}`}
+                      style={{
+                        width: `min(100%, ${maxWidthFromHeightVh}vh)`,
+                        aspectRatio: `${bw} / ${bh}`,
+                      }}
+                    >
+                      <img
+                        src={`http://localhost:8000${currentPreviewBg.url}`}
+                        alt={currentPreviewBg.title}
+                        className="absolute inset-0 h-full w-full object-contain"
                       />
-                    );
-                  })()}
 
-                  <div className="absolute left-3 top-3 rounded-full bg-black/55 px-4 py-1.5 text-sm font-semibold text-white md:text-base">
-                    {t("Preview", "Vorschau")}: {currentPreviewBg.title}
-                  </div>
-                  <div className="absolute bottom-3 left-3 rounded-full bg-black/55 px-4 py-1.5 text-xs font-medium text-white md:text-sm">
-                    {t(
-                      "Only selected scenes go to QR export.",
-                      "Nur ausgewaehlte Szenen gehen in den QR-Export.",
-                    )}
-                  </div>
-                  <div className="absolute right-3 top-3 rounded-full bg-white/85 p-2 text-foreground shadow-lg">
-                    {isCurrentPreviewSelected ? (
-                      <Check className="h-6 w-6 text-film-green" />
-                    ) : (
-                      <Circle className="h-6 w-6 text-muted-foreground" />
-                    )}
-                  </div>
-                </div>
+                      {(() => {
+                        const pos = currentPreviewBg.positions?.[0] || [
+                          bw / 2,
+                          bh,
+                        ];
+                        const mw = currentPreviewBg.max_w;
+                        const mh = currentPreviewBg.max_h;
+                        const tint = currentPreviewBg.silhouette_color || [
+                          0, 0, 0,
+                        ];
+                        const tintCss = `rgb(${tint[0]}, ${tint[1]}, ${tint[2]})`;
+                        const silhouetteUrl = `http://localhost:8000${silhouette.url}`;
+                        const widthPct = mw ? `${(mw / bw) * 100}%` : "30%";
+                        const heightPct = mh ? `${(mh / bh) * 100}%` : "60%";
+
+                        return (
+                          <div
+                            aria-label={t("My silhouette", "Meine Silhouette")}
+                            className="absolute pointer-events-none transition-all duration-500"
+                            style={{
+                              left: `${(pos[0] / bw) * 100}%`,
+                              top: `${(pos[1] / bh) * 100}%`,
+                              transform: "translate(-50%, -100%)",
+                              width: widthPct,
+                              height: heightPct,
+                              backgroundColor: tintCss,
+                              WebkitMaskImage: `url(${silhouetteUrl})`,
+                              maskImage: `url(${silhouetteUrl})`,
+                              WebkitMaskRepeat: "no-repeat",
+                              maskRepeat: "no-repeat",
+                              WebkitMaskPosition: "center bottom",
+                              maskPosition: "center bottom",
+                              WebkitMaskSize: "contain",
+                              maskSize: "contain",
+                            }}
+                          />
+                        );
+                      })()}
+
+                      <div className="absolute left-3 top-3 rounded-full bg-black/55 px-4 py-1.5 text-sm font-semibold text-white md:text-base">
+                        {t("Preview", "Vorschau")}: {currentPreviewBg.title}
+                      </div>
+                      <div className="absolute bottom-3 left-3 rounded-full bg-black/55 px-4 py-1.5 text-xs font-medium text-white md:text-sm">
+                        {t(
+                          "Only selected scenes go to QR export.",
+                          "Nur ausgewaehlte Szenen gehen in den QR-Export.",
+                        )}
+                      </div>
+                      {currentPreviewBg ? (
+                        <button
+                          type="button"
+                          onClick={() => toggleSelection(currentPreviewBg.id)}
+                          className="absolute right-3 top-3 rounded-full bg-white/85 p-2 text-foreground shadow-lg transition-colors hover:bg-white"
+                          title={
+                            isCurrentPreviewSelected
+                              ? t("Unselect scene", "Szene abwaehlen")
+                              : t("Select scene", "Szene auswaehlen")
+                          }
+                        >
+                          {isCurrentPreviewSelected ? (
+                            <Check className="h-6 w-6 text-film-green" />
+                          ) : (
+                            <Circle className="h-6 w-6 text-muted-foreground" />
+                          )}
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                })()}
               </div>
             ) : (
               <div className="flex aspect-[16/9] w-full max-w-5xl items-center justify-center rounded-2xl bg-muted/60">
@@ -327,9 +351,6 @@ const SelectionPage = () => {
                     <span className="block truncate text-sm font-medium">
                       {background.title}
                     </span>
-                    <span className="text-xs text-muted-foreground">
-                      {t("Tap to preview", "Antippen fuer Vorschau")}
-                    </span>
                   </button>
                   <button
                     type="button"
@@ -369,16 +390,10 @@ const SelectionPage = () => {
       </div>
 
       <section className="exhibit-panel mt-3 rounded-2xl p-3 md:p-4">
-        <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="mb-3 flex items-center gap-3">
           <h2 className="text-lg font-semibold md:text-xl">
             {t("Scene Strip", "Szenen-Leiste")}
           </h2>
-          <p className="text-sm text-muted-foreground md:text-base">
-            {t(
-              "Tap to preview, scroll for more.",
-              "Antippen fuer Vorschau, horizontal scrollen fuer mehr.",
-            )}
-          </p>
         </div>
         <div className="custom-scrollbar flex w-full snap-x snap-mandatory items-start gap-4 overflow-x-auto pb-2">
           {backgrounds.map((background) => {
@@ -393,7 +408,7 @@ const SelectionPage = () => {
                 onClick={() => setPreviewBgId(background.id)}
               >
                 <div
-                  className={`relative h-28 w-48 overflow-hidden rounded-xl border-4 transition-all duration-200 ${isPreviewing ? "border-film-blue shadow-xl" : "border-transparent opacity-80 group-hover:opacity-100"} ${selected ? "ring-2 ring-film-green/40" : ""}`}
+                  className={`relative h-[124px] w-[220px] overflow-hidden rounded-xl border-4 transition-all duration-200 ${isPreviewing ? "border-film-blue shadow-xl" : "border-transparent opacity-80 group-hover:opacity-100"} ${selected ? "ring-2 ring-film-green/40" : ""}`}
                 >
                   <img
                     src={`http://localhost:8000${background.url}`}
@@ -412,7 +427,7 @@ const SelectionPage = () => {
                   ) : null}
                 </div>
                 <p
-                  className={`mt-1.5 max-w-48 truncate text-sm font-medium ${isPreviewing ? "text-film-blue" : "text-foreground/80"}`}
+                  className={`mt-1.5 max-w-[220px] truncate text-sm font-medium ${isPreviewing ? "text-film-blue" : "text-foreground/80"}`}
                 >
                   {background.title}
                 </p>
