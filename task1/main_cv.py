@@ -17,10 +17,18 @@ import time
 import argparse
 import numpy as np
 from rembg import remove, new_session
+from PIL import Image
+from utils import crop_to_content
 
 # ---------------------------------------------------------------------------
 # Configuration  (mirror main.py)
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Feature flag — set to False to disable crop-to-content centering and
+# fall back to the original full-frame compositing.
+# ---------------------------------------------------------------------------
+USE_CROP_TO_CONTENT = True
 
 BG_SWITCH_INTERVAL = 30          # seconds a background is displayed before switching
 WIN_NAME  = "RemBG Custom Background"
@@ -109,7 +117,45 @@ def composite(frame_bgr: np.ndarray, bg_bgr: np.ndarray,
               seg_session, mode: str) -> np.ndarray:
     """Segment the person in *frame_bgr* and place them over *bg_bgr*."""
     rgb  = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
-    rgba = np.asarray(remove(rgb, session=seg_session))
+    h, w = rgb.shape[:2]
+    downsampled = cv2.resize(rgb, (w//4, h//4), interpolation=cv2.INTER_AREA)
+    res = np.asarray(remove(downsampled, session=seg_session))
+    rgba = cv2.resize(res, (w, h), interpolation=cv2.INTER_AREA)
+
+    # -------------------------------------------------------------------------
+    # USE_CROP_TO_CONTENT path: crop the silhouette to its bounding box and
+    # paste it centred on the background.  Toggle USE_CROP_TO_CONTENT = False
+    # at the top of the file to revert to the original compositing logic.
+    # -------------------------------------------------------------------------
+    if USE_CROP_TO_CONTENT:
+        # rgba is a numpy H×W×4 array — convert to PIL for crop_to_content
+        rgba_pil  = Image.fromarray(rgba, mode="RGBA")
+        cropped   = crop_to_content(rgba_pil)          # tight-cropped RGBA PIL
+        cw, ch    = cropped.size                       # cropped (width, height)
+        bh, bw    = bg_bgr.shape[:2]                   # background dims
+
+        # Build the foreground layer: paste cropped silhouette centred on bg
+        fg_pil = Image.new("RGBA", (bw, bh), (0, 0, 0, 0))
+        paste_x = (bw - cw) // 2
+        paste_y = (bh - ch) // 2
+        fg_pil.paste(cropped, (paste_x, paste_y))
+
+        fg_np   = np.array(fg_pil)                     # H×W×4, back to numpy
+        alpha   = fg_np[:, :, 3] / 255.0              # float mask [0,1]
+        m3      = alpha[:, :, np.newaxis]
+
+        if mode == "rgb":
+            # Use the original colour frame pixels (BGR) weighted by the mask
+            fg_bgr = cv2.cvtColor(np.array(fg_pil.convert("RGB")), cv2.COLOR_RGB2BGR)
+            fg     = fg_bgr * m3
+        else:  # "sil"
+            fg = np.full_like(bg_bgr, fill_value=1, dtype=np.uint8) * m3
+
+        bg = bg_bgr * (1.0 - m3)
+        return (fg + bg).astype(np.uint8)
+    # -------------------------------------------------------------------------
+
+    # Original compositing path (USE_CROP_TO_CONTENT = False)
     mask = rgba[:, :, 3] / 255.0
 
     # --- Vertical shift: move the person downward on the background ----------
