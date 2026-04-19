@@ -1,4 +1,5 @@
 from PIL import Image
+import cv2
 import numpy as np
 
 
@@ -31,3 +32,50 @@ def crop_to_content(image: Image.Image, margin: int = 5) -> Image.Image:
     right = min(alpha.shape[1], int(non_zero_cols[-1]) + 1 + margin)
 
     return image.crop((left, top, right, bottom))
+
+
+BG_SWITCH_INTERVAL  = 30
+TRANSITION_DURATION = 0.3
+TRANSITION_FPS      = 60
+
+
+def _fade_n_frames():
+    return max(1, int(TRANSITION_DURATION * TRANSITION_FPS))
+
+
+def _fade_wait_ms():
+    return max(1, int(1000 / TRANSITION_FPS))
+
+
+def play_fade_simple(win_name, cap, old_build_fn, new_build_fn, old_bg, new_bg) -> bool:
+    n     = _fade_n_frames()
+    wm    = _fade_wait_ms()
+    h, w  = old_bg.shape[:2]
+    black = np.zeros((h, w, 3), dtype=np.uint8)
+
+    def _t(i):
+        return i / (n - 1) if n > 1 else 1.0
+
+    for i in range(n):
+        ok, frame = cap.read()
+        if not ok:
+            continue
+        base = old_build_fn(frame, old_bg)
+        out  = cv2.addWeighted(base, 1.0 - _t(i), black, _t(i), 0)
+        cv2.imshow(win_name, out)
+        key = cv2.waitKey(max(1, wm)) & 0xFF
+        if key in (ord("q"), 27):
+            return False
+
+    for i in range(n):
+        ok, frame = cap.read()
+        if not ok:
+            continue
+        base = new_build_fn(frame, new_bg)
+        out  = cv2.addWeighted(base, _t(i), black, 1.0 - _t(i), 0)
+        cv2.imshow(win_name, out)
+        key = cv2.waitKey(max(1, wm)) & 0xFF
+        if key in (ord("q"), 27):
+            return False
+
+    return True

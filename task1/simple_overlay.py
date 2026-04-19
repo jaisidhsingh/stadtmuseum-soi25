@@ -1,18 +1,20 @@
+import time
 import argparse
 import cv2
 import numpy as np
 from PIL import Image
 from rembg import remove, new_session
 
-from utils import crop_to_content
+from utils import crop_to_content, play_fade_simple, BG_SWITCH_INTERVAL
 
-
-BG_PATH   = "assets/tapa-0-cleaned.jpg"
-SIL_SCALE = 0.4
-ANCHOR_X = 450   # None → horizontally centred on the background
-ANCHOR_Y = 590   # None → bottom edge of the background
 
 WIN_NAME = " "
+DATA = [
+    {"path": "assets/backgrounds/bg3_portrait.jpg",  "anch_x": 450, "anch_y": 590, "scale": 0.4},
+    {"path": "assets/backgrounds/bg9_portrait.jpg",  "anch_x": 450, "anch_y": 590, "scale": 0.4},
+    {"path": "assets/backgrounds/bg11_portrait.jpg", "anch_x": 450, "anch_y": 590, "scale": 0.4},
+    {"path": "assets/backgrounds/bg15_portrait.jpg", "anch_x": 450, "anch_y": 590, "scale": 0.4},
+]
 
 
 def _segment_rgba(frame_bgr: np.ndarray, session) -> np.ndarray:
@@ -20,39 +22,32 @@ def _segment_rgba(frame_bgr: np.ndarray, session) -> np.ndarray:
     h, w = rgb.shape[:2]
     small = cv2.resize(rgb, (w // 4, h // 4), interpolation=cv2.INTER_AREA)
     result = np.asarray(remove(small, session=session))
-    return cv2.resize(result, (w, h), interpolation=cv2.INTER_AREA)   # H×W×4
+    return cv2.resize(result, (w, h), interpolation=cv2.INTER_AREA)
 
 
 def overlay_on_bg(frame_bgr: np.ndarray, bg_bgr: np.ndarray,
-                  session, mode: str) -> np.ndarray:
+                  session, mode: str,
+                  scale: float, anchor_x: int, anchor_y: int) -> np.ndarray:
     bh, bw = bg_bgr.shape[:2]
 
-    # frame_bgr = cv2.rotate(frame_bgr, cv2.ROTATE_90_CLOCKWISE)
-    rgba_np = _segment_rgba(frame_bgr, session)
-
+    rgba_np  = _segment_rgba(frame_bgr, session)
     rgba_pil = Image.fromarray(rgba_np, mode="RGBA")
-    cropped  = crop_to_content(rgba_pil)       # PIL RGBA, tight crop
+    cropped  = crop_to_content(rgba_pil)
 
-    cw, ch   = cropped.size                            # tight-crop dimensions
-    sil_w    = max(1, int(round(cw * SIL_SCALE)))
-    sil_h    = max(1, int(round(ch * SIL_SCALE)))
-    sil_pil  = cropped.resize((sil_w, sil_h), Image.LANCZOS)
+    cw, ch  = cropped.size
+    sil_w   = max(1, int(round(cw * scale)))
+    sil_h   = max(1, int(round(ch * scale)))
+    sil_pil = cropped.resize((sil_w, sil_h), Image.LANCZOS)
 
-    anchor_x = ANCHOR_X if ANCHOR_X is not None else bw // 2
-    anchor_y = ANCHOR_Y if ANCHOR_Y is not None else bh
-
-    paste_x = anchor_x - sil_w // 2                    # left edge
-    paste_y = anchor_y - sil_h                         # top edge (bottom pinned)
-
-    paste_x = max(0, min(paste_x, bw - sil_w))
-    paste_y = max(0, min(paste_y, bh - sil_h))
+    paste_x = max(0, min(anchor_x - sil_w // 2, bw - sil_w))
+    paste_y = max(0, min(anchor_y - sil_h,       bh - sil_h))
 
     fg_canvas = Image.new("RGBA", (bw, bh), (0, 0, 0, 0))
     fg_canvas.paste(sil_pil, (paste_x, paste_y))
 
-    fg_np  = np.array(fg_canvas)                       # H×W×4
-    alpha  = fg_np[:, :, 3] / 255.0                   # float mask
-    m3     = alpha[:, :, np.newaxis]
+    fg_np = np.array(fg_canvas)
+    alpha = fg_np[:, :, 3] / 255.0
+    m3    = alpha[:, :, np.newaxis]
 
     if mode == "rgb":
         fg_bgr = np.zeros((bh, bw, 3), dtype=np.uint8)
@@ -60,26 +55,23 @@ def overlay_on_bg(frame_bgr: np.ndarray, bg_bgr: np.ndarray,
             cv2.cvtColor(np.array(sil_pil.convert("RGB")), cv2.COLOR_RGB2BGR)
         )
         fg = fg_bgr * m3
-    else:  # "sil" — black silhouette
+    else:
         fg = np.full_like(bg_bgr, fill_value=0, dtype=np.uint8) * m3
 
-    out = (fg + bg_bgr * (1.0 - m3)).astype(np.uint8)
-    return out
+    return (fg + bg_bgr * (1.0 - m3)).astype(np.uint8)
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--mode",
-        choices=["rgb", "sil"],
-        default="sil"
-    )
+    parser.add_argument("--mode", choices=["rgb", "sil"], default="sil")
     args = parser.parse_args()
 
-    bg = cv2.imread(BG_PATH)
-    if bg is None:
-        raise FileNotFoundError(f"Could not load background: {BG_PATH!r}")
-    print(f"Background loaded: {bg.shape[1]}×{bg.shape[0]}  ({BG_PATH})")
+    entries = []
+    for d in DATA:
+        bg = cv2.imread(d["path"])
+        if bg is None:
+            raise FileNotFoundError(f"Could not load background: {d['path']!r}")
+        entries.append({"bg": bg, "scale": d["scale"], "anch_x": d["anch_x"], "anch_y": d["anch_y"]})
 
     session = new_session("u2net_human_seg")
 
@@ -87,20 +79,39 @@ def main():
     if not cap.isOpened():
         raise RuntimeError("Could not open camera.")
 
+    h0, w0 = entries[0]["bg"].shape[:2]
     cv2.namedWindow(WIN_NAME, cv2.WINDOW_NORMAL)
-    cv2.resizeWindow(WIN_NAME, bg.shape[1], bg.shape[0])
-    print(f"Window: {bg.shape[1]}×{bg.shape[0]}  (press q or ESC to quit)")
+    cv2.resizeWindow(WIN_NAME, w0, h0)
+
+    idx          = 0
+    last_switch  = time.time()
 
     while cap.isOpened():
         ok, frame = cap.read()
         if not ok:
             continue
 
-        result = overlay_on_bg(frame, bg.copy(), session, args.mode)
-        cv2.imshow(WIN_NAME, result)
+        cur = entries[idx]
 
+        if time.time() - last_switch >= BG_SWITCH_INTERVAL:
+            next_idx = (idx + 1) % len(entries)
+            nxt      = entries[next_idx]
+
+            old_build = lambda frm, bg, e=cur: overlay_on_bg(frm, bg, session, args.mode, e["scale"], e["anch_x"], e["anch_y"])
+            new_build = lambda frm, bg, e=nxt: overlay_on_bg(frm, bg, session, args.mode, e["scale"], e["anch_x"], e["anch_y"])
+
+            still_running = play_fade_simple(WIN_NAME, cap, old_build, new_build, cur["bg"], nxt["bg"])
+            idx         = next_idx
+            last_switch = time.time()
+            if not still_running:
+                break
+            continue
+
+        result = overlay_on_bg(frame, cur["bg"], session, args.mode,
+                               cur["scale"], cur["anch_x"], cur["anch_y"])
+        cv2.imshow(WIN_NAME, result)
         key = cv2.waitKey(1) & 0xFF
-        if key in (ord("q"), 27):   # q or ESC
+        if key in (ord("q"), 27):
             break
 
     cap.release()
