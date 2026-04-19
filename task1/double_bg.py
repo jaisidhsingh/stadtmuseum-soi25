@@ -5,7 +5,7 @@ import numpy as np
 from PIL import Image
 from rembg import remove, new_session
 
-from utils import crop_to_content, draw_film_reel_separator, BG_SWITCH_INTERVAL
+from utils import (crop_to_content, draw_film_reel_separator, BG_SWITCH_INTERVAL)
 
 
 WIN_NAME = " "
@@ -95,7 +95,8 @@ def build_double_frame(frame_bgr: np.ndarray,
                        entries: list,
                        session,
                        mode: str,
-                       pane_size: int) -> np.ndarray:
+                       pane_size: int,
+                       reel_strip: np.ndarray) -> np.ndarray:
     """
     Segment the frame once and composite it independently into pane 0 (top)
     and pane 1 (bottom).  Returns a portrait canvas of shape (2*pane_size,
@@ -119,7 +120,7 @@ def build_double_frame(frame_bgr: np.ndarray,
         panes.append(pane)
 
     canvas = np.vstack(panes)                      # (2*pane_size, pane_size, 3)
-    draw_film_reel_separator(canvas, y_mid=pane_size)  # boundary between panes
+    draw_film_reel_separator(canvas, y_mid=pane_size+0)
     return canvas
 
 
@@ -131,7 +132,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Portrait dual-pane background overlay."
     )
-    parser.add_argument("--mode", choices=["rgb", "sil"], default="rgb",
+    parser.add_argument("--mode", choices=["rgb", "sil"], default="sil",
                         help="'rgb' shows real colours; 'sil' shows a dark silhouette.")
     parser.add_argument("--pane-size", type=int, default=720,
                         help="Side length (px) of each square pane. "
@@ -153,6 +154,9 @@ def main():
             "anch_x":  d["anch_x"],
             "anch_y":  d["anch_y"],
         })
+
+    # Bake the reel separator strip once (scales to pane width)
+    reel_strip = None
 
     session = new_session("u2net_human_seg")
 
@@ -179,7 +183,7 @@ def main():
             last_switch = time.time()
 
         pair = entries[pair_idx * 2 : pair_idx * 2 + 2]
-        canvas = build_double_frame(frame, pair, session, args.mode, pane_size)
+        canvas = build_double_frame(frame, pair, session, args.mode, pane_size, reel_strip)
         cv2.imshow(WIN_NAME, canvas)
 
         key = cv2.waitKey(1) & 0xFF

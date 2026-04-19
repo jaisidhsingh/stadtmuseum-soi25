@@ -93,8 +93,8 @@ REEL_HOLE_SPACING  = 34    # centre-to-centre horizontal spacing (px)
 REEL_HOLE_MARGIN   = 6     # gap between hole row and strip top/bottom edge (px)
 
 # Strip colours (BGR)
-REEL_COLOR         = (12,  12,  12)   # near-black strip body
-REEL_HOLE_COLOR    = (50,  50,  50)   # mid-gray sprocket holes
+REEL_COLOR         = (0,  0,  0)   # near-black strip body
+REEL_HOLE_COLOR    = (40,  40,  40)   # mid-gray sprocket holes
 
 
 def draw_film_reel_separator(canvas: np.ndarray, y_mid: int) -> np.ndarray:
