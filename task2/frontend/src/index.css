@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Libre+Franklin:wght@400;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -151,9 +151,15 @@ All colors MUST be HSL.
 		@apply border-border;
 	}
 
+	/* Keep vertical scrollbar lane always — modal scroll-lock won't widen the layout. */
+	html {
+		scrollbar-gutter: stable;
+		overflow-y: scroll;
+	}
+
 	body {
 		@apply bg-background text-foreground;
-		font-family: "Libre Franklin", "Segoe UI", sans-serif;
+		font-family: "Source Sans 3", "Segoe UI", sans-serif;
 		background-image:
 			radial-gradient(circle at 12% 12%, hsl(var(--film-yellow) / 0.14), transparent 35%),
 			radial-gradient(circle at 88% 18%, hsl(var(--film-blue) / 0.16), transparent 34%),
@@ -175,6 +181,10 @@ All colors MUST be HSL.
 		background: transparent;
 	}
 
+	.app-shell > main > .exhibit-shell.start-page-shell {
+		background: hsl(0 0% 0%);
+	}
+
 	.exhibit-shell {
 		background:
 			linear-gradient(130deg, hsl(var(--film-blue) / 0.09), transparent 36%),
@@ -183,16 +193,25 @@ All colors MUST be HSL.
 	}
 
 	.exhibit-panel {
-		background: hsl(0 0% 100% / 0.88);
+		background: hsl(0, 0%, 100%);
 		backdrop-filter: blur(6px);
 		border: 1px solid hsl(var(--border));
 		box-shadow: 0 10px 34px hsl(var(--film-black) / 0.12);
 	}
 
 	.exhibit-title {
-		font-family: "Cinzel", Georgia, serif;
+		font-family: "Source Sans 3", "Segoe UI", sans-serif;
 		letter-spacing: 0.015em;
 		line-height: 1.15;
+	}
+
+	/* White copy with film-yellow halo (hero) */
+	.hero-title-yellow-glow {
+		text-shadow:
+			0 0 10px hsl(var(--film-yellow) / 0.42),
+			0 0 22px hsl(var(--film-yellow) / 0.24),
+			0 0 36px hsl(var(--film-yellow) / 0.12),
+			0 1px 3px hsl(var(--film-black) / 0.35);
 	}
 
 	.film-tag {
@@ -249,6 +268,13 @@ All colors MUST be HSL.
 	.cta-step-2 {
 		background: hsl(var(--film-green));
 		color: white;
+	}
+
+	/* Start page START: white letters with black outline */
+	.cta-step-2.cta-start-outlined {
+		color: #fff;
+		-webkit-text-stroke: 1.5px hsl(var(--film-black));
+		paint-order: stroke fill;
 	}
 
 	.cta-step-3 {

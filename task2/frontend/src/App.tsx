@@ -20,10 +20,10 @@ const AppContent = () => {
 
   return (
     <div className="app-shell min-h-screen exhibit-shell flex flex-col overflow-hidden">
-      <main className="flex-1 min-h-0">
+      <main className="flex min-h-0 flex-1 flex-col">
         <Routes>
           <Route path="/" element={<StartPage />} />
-          <Route path="/camera" element={<CameraPage />} />
+          <Route path="/camera" element={<TestInputPage />} />
           <Route path="/test-input" element={<TestInputPage />} />
           <Route path="/silhouette" element={<SilhouettePage />} />
           <Route path="/selection" element={<SelectionPage />} />
