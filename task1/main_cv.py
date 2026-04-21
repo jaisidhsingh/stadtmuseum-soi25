@@ -32,11 +32,27 @@ USE_CROP_TO_CONTENT = True
 
 BG_SWITCH_INTERVAL = 30          # seconds a background is displayed before switching
 WIN_NAME  = "RemBG Custom Background"
-BG_FOLDER = "../task2/backend/backgrounds"
+BG_FOLDER = "./assets/backgrounds"
 
 # How many pixels to shift the composited person downward on the background.
 # Increase this value to push the figure further toward the bottom of the frame.
 VERTICAL_OFFSET = 40
+
+# ---------------------------------------------------------------------------
+# Per-background configuration.
+# anch_y : Y coordinate (in background pixels) where the *centre* of the
+#          cropped silhouette is placed.  Set to None to fall back to
+#          centring on the background.
+# scale  : uniform scale applied to the cropped silhouette before pasting.
+#          Set to None to use the silhouette at its natural (cropped) size.
+# Keys must match the filename (basename) of the background image.
+# ---------------------------------------------------------------------------
+DATA = {
+    "bg3.jpg":  {"anch_y": 480, "scale": 0.6},
+    "bg9.png":  {"anch_y": 560, "scale": 0.3},
+    "bg11.png": {"anch_y": 580, "scale": 0.5},
+    "bg15.png": {"anch_y": 580, "scale": 0.5},
+}
 
 # Transition timing
 TRANSITION_FPS      = 60
@@ -114,8 +130,21 @@ def _cv_delay(ms: int) -> bool:
 # ---------------------------------------------------------------------------
 
 def composite(frame_bgr: np.ndarray, bg_bgr: np.ndarray,
-              seg_session, mode: str) -> np.ndarray:
-    """Segment the person in *frame_bgr* and place them over *bg_bgr*."""
+              seg_session, mode: str,
+              anch_y: int | None = None,
+              scale: float | None = None) -> np.ndarray:
+    """Segment the person in *frame_bgr* and place them over *bg_bgr*.
+
+    Args:
+        frame_bgr  : live camera frame (BGR).
+        bg_bgr     : background image at canvas size (BGR).
+        seg_session: rembg session.
+        mode       : 'rgb' or 'sil'.
+        anch_y     : Y coordinate (background pixels) where the *centre* of
+                     the silhouette is placed.  None → centre of background.
+        scale      : uniform scale applied to the cropped silhouette.
+                     None → natural (cropped) size.
+    """
     rgb  = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
     h, w = rgb.shape[:2]
     downsampled = cv2.resize(rgb, (w//4, h//4), interpolation=cv2.INTER_AREA)
@@ -124,8 +153,9 @@ def composite(frame_bgr: np.ndarray, bg_bgr: np.ndarray,
 
     # -------------------------------------------------------------------------
     # USE_CROP_TO_CONTENT path: crop the silhouette to its bounding box and
-    # paste it centred on the background.  Toggle USE_CROP_TO_CONTENT = False
-    # at the top of the file to revert to the original compositing logic.
+    # paste it on the background using anch_y / scale when provided.
+    # Toggle USE_CROP_TO_CONTENT = False at the top of the file to revert to
+    # the original full-frame compositing logic.
     # -------------------------------------------------------------------------
     if USE_CROP_TO_CONTENT:
         # rgba is a numpy H×W×4 array — convert to PIL for crop_to_content
@@ -134,10 +164,24 @@ def composite(frame_bgr: np.ndarray, bg_bgr: np.ndarray,
         cw, ch    = cropped.size                       # cropped (width, height)
         bh, bw    = bg_bgr.shape[:2]                   # background dims
 
-        # Build the foreground layer: paste cropped silhouette centred on bg
+        # Apply scale if provided
+        if scale is not None:
+            cw = max(1, int(round(cw * scale)))
+            ch = max(1, int(round(ch * scale)))
+            cropped = cropped.resize((cw, ch), Image.LANCZOS)
+
+        # Horizontal: always centred on the background
+        paste_x = max(0, min((bw - cw) // 2, bw - cw))
+
+        # Vertical: anchor_y defines the centre of the silhouette;
+        # fall back to centring on the background when not provided.
+        if anch_y is not None:
+            paste_y = max(0, min(anch_y - ch // 2, bh - ch))
+        else:
+            paste_y = max(0, (bh - ch) // 2)
+
+        # Build the foreground layer
         fg_pil = Image.new("RGBA", (bw, bh), (0, 0, 0, 0))
-        paste_x = (bw - cw) // 2
-        paste_y = (bh - ch) // 2
         fg_pil.paste(cropped, (paste_x, paste_y))
 
         fg_np   = np.array(fg_pil)                     # H×W×4, back to numpy
@@ -238,7 +282,9 @@ def _draw_curtain_frame(base_img: np.ndarray, t: float, closing: bool) -> np.nda
 
 
 def _play_curtain(cap, old_bg, new_bg, seg_session, mode,
-                  canvas_w=0, canvas_h=0) -> bool:
+                  canvas_w=0, canvas_h=0,
+                  old_anch_y=None, new_anch_y=None,
+                  old_scale=None, new_scale=None) -> bool:
     """Curtain transition rendered via cv2.imshow.  Returns False if user quit."""
     n  = _n_frames()
     wm = _wait_ms()
@@ -253,7 +299,9 @@ def _play_curtain(cap, old_bg, new_bg, seg_session, mode,
         ok, frame = cap.read()
         if not ok:
             continue
-        base = composite(_fit_to_canvas(frame, cw, ch), old_bg, seg_session, mode)
+        frame = cv2.flip(frame, 1)   # mirror: left ↔ right
+        base = composite(_fit_to_canvas(frame, cw, ch), old_bg, seg_session, mode,
+                         anch_y=old_anch_y, scale=old_scale)
         if not _cv_show(WIN_NAME, _draw_curtain_frame(base, _t(i), closing=True)):
             return False
         _cv_delay(wm)
@@ -263,7 +311,9 @@ def _play_curtain(cap, old_bg, new_bg, seg_session, mode,
         ok, frame = cap.read()
         if not ok:
             continue
-        base = composite(_fit_to_canvas(frame, cw, ch), new_bg, seg_session, mode)
+        frame = cv2.flip(frame, 1)   # mirror: left ↔ right
+        base = composite(_fit_to_canvas(frame, cw, ch), new_bg, seg_session, mode,
+                         anch_y=new_anch_y, scale=new_scale)
         if not _cv_show(WIN_NAME, _draw_curtain_frame(base, _t(i), closing=False)):
             return False
         _cv_delay(wm)
@@ -272,7 +322,9 @@ def _play_curtain(cap, old_bg, new_bg, seg_session, mode,
 
 
 def _play_fade(cap, old_bg, new_bg, seg_session, mode,
-               canvas_w=0, canvas_h=0) -> bool:
+               canvas_w=0, canvas_h=0,
+               old_anch_y=None, new_anch_y=None,
+               old_scale=None, new_scale=None) -> bool:
     """Fade transition rendered via cv2.imshow.  Returns False if user quit."""
     n  = _n_frames()
     wm = _wait_ms()
@@ -288,8 +340,10 @@ def _play_fade(cap, old_bg, new_bg, seg_session, mode,
         ok, frame = cap.read()
         if not ok:
             continue
+        frame = cv2.flip(frame, 1)   # mirror: left ↔ right
         alpha = 1.0 - _t(i)
-        base  = composite(_fit_to_canvas(frame, cw, ch), old_bg, seg_session, mode)
+        base  = composite(_fit_to_canvas(frame, cw, ch), old_bg, seg_session, mode,
+                          anch_y=old_anch_y, scale=old_scale)
         out   = cv2.addWeighted(base, alpha, black, 1.0 - alpha, 0)
         if not _cv_show(WIN_NAME, out):
             return False
@@ -300,8 +354,10 @@ def _play_fade(cap, old_bg, new_bg, seg_session, mode,
         ok, frame = cap.read()
         if not ok:
             continue
+        frame = cv2.flip(frame, 1)   # mirror: left ↔ right
         alpha = _t(i)
-        base  = composite(_fit_to_canvas(frame, cw, ch), new_bg, seg_session, mode)
+        base  = composite(_fit_to_canvas(frame, cw, ch), new_bg, seg_session, mode,
+                          anch_y=new_anch_y, scale=new_scale)
         out   = cv2.addWeighted(base, alpha, black, 1.0 - alpha, 0)
         if not _cv_show(WIN_NAME, out):
             return False
@@ -317,13 +373,17 @@ TRANSITIONS = {
 
 
 def play_transition(name, cap, old_bg, new_bg, seg_session, mode,
-                    canvas_w=0, canvas_h=0) -> bool:
+                    canvas_w=0, canvas_h=0,
+                    old_anch_y=None, new_anch_y=None,
+                    old_scale=None, new_scale=None) -> bool:
     """Dispatch to the named transition.  Returns False if the user quit."""
     fn = TRANSITIONS.get(name)
     if fn is None:
         raise ValueError(f"Unknown transition '{name}'. Choose from: {list(TRANSITIONS)}")
     return fn(cap, old_bg, new_bg, seg_session, mode,
-               canvas_w=canvas_w, canvas_h=canvas_h)
+               canvas_w=canvas_w, canvas_h=canvas_h,
+               old_anch_y=old_anch_y, new_anch_y=new_anch_y,
+               old_scale=old_scale, new_scale=new_scale)
 
 
 # ---------------------------------------------------------------------------
@@ -369,16 +429,30 @@ def main():
     CANVAS_W, CANVAS_H = _compute_canvas_size(custom_bgs)
     print(f"Canvas size: {CANVAS_W}x{CANVAS_H} (largest background)")
 
-    # Pre-fit all backgrounds onto the canvas (aspect-ratio preserved)
-    canvas_bgs = [
-        _fit_to_canvas(bg, CANVAS_W, CANVAS_H) if bg is not None else _gray(CANVAS_H, CANVAS_W)
-        for bg in custom_bgs
-    ]
+    # Pre-fit all backgrounds onto the canvas (aspect-ratio preserved).
+    # Also carry per-background anch_y / scale from DATA (None if not listed).
+    canvas_bgs  = []
+    bg_anchors  = []   # parallel list of anch_y values (int or None)
+    bg_scales   = []   # parallel list of scale values  (float or None)
+    for p, raw in zip(bg_paths, custom_bgs):
+        fitted = _fit_to_canvas(raw, CANVAS_W, CANVAS_H) if raw is not None else _gray(CANVAS_H, CANVAS_W)
+        canvas_bgs.append(fitted)
+        entry = DATA.get(os.path.basename(p), {})
+        bg_anchors.append(entry.get("anch_y", None))
+        bg_scales.append(entry.get("scale", None))
 
     cur_bg_index = 0
     last_bg_time = time.time()
 
     cap = cv2.VideoCapture(0)
+    # Request the maximum resolution the camera supports.
+    # OpenCV will silently clamp to the highest mode the device offers
+    # (1280×720 on the MacBook FaceTime HD camera).
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH,  1920)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+    actual_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    actual_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    print(f"Camera capture resolution: {actual_w}x{actual_h}")
 
     # --- OpenCV window (resizable so the user can drag it to any size) ---
     cv2.namedWindow(WIN_NAME, cv2.WINDOW_NORMAL)
@@ -390,6 +464,7 @@ def main():
         ok, frame = cap.read()
         if not ok:
             continue
+        frame = cv2.flip(frame, 1)   # mirror: left ↔ right
 
         # Scale the live camera frame to fit the canvas
         frame_canvas = _fit_to_canvas(frame, CANVAS_W, CANVAS_H)
@@ -405,6 +480,10 @@ def main():
                 cap, old_bg_safe, new_bg_safe,
                 session, args.mode,
                 canvas_w=CANVAS_W, canvas_h=CANVAS_H,
+                old_anch_y=bg_anchors[cur_bg_index],
+                new_anch_y=bg_anchors[next_idx],
+                old_scale=bg_scales[cur_bg_index],
+                new_scale=bg_scales[next_idx],
             )
 
             cur_bg_index = next_idx
@@ -415,7 +494,9 @@ def main():
 
         # --- Normal render ---
         bg_image = canvas_bgs[cur_bg_index]
-        final    = composite(frame_canvas, bg_image, session, args.mode)
+        final    = composite(frame_canvas, bg_image, session, args.mode,
+                             anch_y=bg_anchors[cur_bg_index],
+                             scale=bg_scales[cur_bg_index])
 
         if not _cv_show(WIN_NAME, final):
             break   # user pressed q / ESC
