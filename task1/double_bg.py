@@ -14,10 +14,10 @@ WIN_NAME = " "
 # anch_x / anch_y are in pane-local pixel coordinates.
 # scale  is applied to DATA-space dimensions before pasting.
 DATA = [
-    {"path": "assets/backgrounds/bg11.png", "anch_x": 360, "anch_y": 710, "scale": 0.3},
-    {"path": "assets/backgrounds/bg15.png", "anch_x": 500, "anch_y": 690, "scale": 0.2},
-    {"path": "assets/backgrounds/bg3.jpg",  "anch_x": 550, "anch_y": 560, "scale": 0.25},
-    {"path": "assets/backgrounds/bg9.png",  "anch_x": 720, "anch_y": 660, "scale": 0.2},
+    {"path": "assets/backgrounds/bg11.png", "anch_x": 360, "anch_y": 710, "scale": 0.2},
+    {"path": "assets/backgrounds/bg15.png", "anch_x": 500, "anch_y": 690, "scale": 0.1},
+    {"path": "assets/backgrounds/bg3.jpg",  "anch_x": 550, "anch_y": 560, "scale": 0.15},
+    {"path": "assets/backgrounds/bg9.png",  "anch_x": 720, "anch_y": 660, "scale": 0.15},
 ]
 
 
@@ -103,6 +103,7 @@ def build_double_frame(frame_bgr: np.ndarray,
     pane_size, 3).
     """
     # --- segment once ---
+    frame_bgr = cv2.rotate(frame_bgr, cv2.ROTATE_90_COUNTERCLOCKWISE)
     rgba_np  = _segment_rgba(frame_bgr, session)
     rgba_pil = Image.fromarray(rgba_np, mode="RGBA")
     cropped  = crop_to_content(rgba_pil)           # tight crop (no wasted space)
