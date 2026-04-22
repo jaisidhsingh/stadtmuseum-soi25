@@ -20,11 +20,12 @@ import cv2
 import numpy as np
 from PIL import Image
 from rembg import remove, new_session
-
+from lightweight_humanseg.pphumanseg import PPHumanSeg
 from utils import BG_SWITCH_INTERVAL
 
 
 WIN_NAME = " "
+MODEL_PATH = "./lightweight_humanseg/human_segmentation_pphumanseg_2023mar.onnx"
 
 # Each entry: one background + its per-background anchor / scale.
 # anch_y : Y coordinate (background pixels) where the *centre* of the
@@ -42,17 +43,27 @@ FADE_FPS      = 60
 FADE_DURATION = 0.3    # seconds per half-phase (fade-out then fade-in)
 
 
+model = PPHumanSeg(modelPath=MODEL_PATH,
+                    backendId=cv2.dnn.DNN_BACKEND_OPENCV,
+                    targetId=cv2.dnn.DNN_TARGET_CPU)
 # ---------------------------------------------------------------------------
 # Segmentation
 # ---------------------------------------------------------------------------
 
-def _segment_rgba(frame_bgr: np.ndarray, session) -> np.ndarray:
-    """Downsample → segment → upsample back to original camera resolution."""
+def _segment_rgba(frame_bgr: np.ndarray, session, scale, light_model:bool=False) -> np.ndarray:
     rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
     h, w = rgb.shape[:2]
-    small  = cv2.resize(rgb, (w // 4, h // 4), interpolation=cv2.INTER_AREA)
-    result = np.asarray(remove(small, session=session))   # RGBA uint8
-    return cv2.resize(result, (w, h), interpolation=cv2.INTER_LINEAR)
+    nw = max(1, int(round(w * scale)))
+    nh = max(1, int(round(h * scale)))
+    small  = cv2.resize(rgb, (nw, nh), interpolation=cv2.INTER_AREA)
+    if not light_model:
+        result = remove(small, session=session)   # RGBA uint8
+    else:
+        # infer() returns (1, H, W) binary mask (0 = bg, 1 = fg)
+        mask = model.infer(small)[0]              # (H, W), uint8, values 0/1
+        alpha = (mask * 255).astype(np.uint8)     # 0 or 255
+        result = np.dstack([small, alpha])        # (H, W, 4) RGBA uint8
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -64,7 +75,8 @@ def overlay_on_bg(frame_bgr: np.ndarray,
                   session,
                   mode: str,
                   scale: float,
-                  anchor_y: int) -> np.ndarray:
+                  anchor_y: int,
+                  light_model: bool) -> np.ndarray:
     """
     Segment *frame_bgr*, scale the full RGBA result, and paste it onto
     *bg_bgr* centred horizontally with its vertical centre at *anchor_y*.
@@ -84,15 +96,16 @@ def overlay_on_bg(frame_bgr: np.ndarray,
     bh, bw = bg_bgr.shape[:2]
 
     # Segment → full-res RGBA
-    rgba_np = _segment_rgba(frame_bgr, session)
-    src_h, src_w = rgba_np.shape[:2]
+    rgba_np = _segment_rgba(frame_bgr, session, scale, light_model)
+    sil_h, sil_w = rgba_np.shape[:2]
 
     # Scale
-    sil_w = max(1, int(round(src_w * scale)))
-    sil_h = max(1, int(round(src_h * scale)))
-    sil_pil = Image.fromarray(rgba_np, mode="RGBA").resize(
-        (sil_w, sil_h), Image.LANCZOS
-    )
+    # sil_w = max(1, int(round(src_w * scale)))
+    # sil_h = max(1, int(round(src_h * scale)))
+    sil_pil = Image.fromarray(rgba_np, mode="RGBA")
+    #.resize(
+    #     (sil_w, sil_h), Image.LANCZOS
+    # )
 
     # Paste position: centre-x, anchor_y as vertical centre (clamped)
     paste_x = max(0, min((bw - sil_w) // 2, bw - sil_w))
@@ -177,6 +190,8 @@ def main():
     )
     parser.add_argument("--mode", choices=["rgb", "sil"], default="sil",
                         help="'rgb' keeps colour; 'sil' renders a dark silhouette.")
+    parser.add_argument("--light", action="store_true",
+                        help="Use the lightweight PPHumanSeg model instead of rembg.")
     args = parser.parse_args()
 
     # Load backgrounds
@@ -187,7 +202,8 @@ def main():
             raise FileNotFoundError(f"Could not load background: {d['path']!r}")
         entries.append({"bg": bg, "scale": d["scale"], "anch_y": d["anch_y"]})
 
-    session = new_session("u2net_human_seg")
+    # session = new_session("u2net_human_seg")
+    session = new_session("u2netp") # silueta, birefnet-lite
 
     cap = cv2.VideoCapture(0)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH,  1920)
@@ -227,7 +243,7 @@ def main():
             continue
 
         result = overlay_on_bg(frame, cur["bg"], session, args.mode,
-                                cur["scale"], cur["anch_y"])
+                                cur["scale"], cur["anch_y"], args.light)
         cv2.imshow(WIN_NAME, result)
         key = cv2.waitKey(1) & 0xFF
         if key in (ord("q"), 27):
