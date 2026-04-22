@@ -38,12 +38,25 @@ def get_hand_middle_keypoint(hand_keypoints):
     return hand_middle_keypoint
 
 
-def get_head_middle_keypoint(keypoints):
+def get_head_middle_keypoint(keypoints, ear_to_nose_frac=0.2):
+    head_middle_keypoint = np.array([0.0, 0.0, 0.0])
+
     r_ear_keypoint = keypoints[17]
     l_ear_keypoint = keypoints[18]
+    nose_keypoint = keypoints[0]
 
     if r_ear_keypoint[2] != 0 and l_ear_keypoint[2] != 0:
         head_middle_keypoint = (r_ear_keypoint + l_ear_keypoint) / 2
+    elif nose_keypoint[2] != 0:
+        # If nose visible, offset the keypoint from the visible ear towards the nose
+        if r_ear_keypoint[2] != 0:
+            head_middle_keypoint = (
+                r_ear_keypoint + (nose_keypoint - r_ear_keypoint) * ear_to_nose_frac
+            )
+        elif l_ear_keypoint[2] != 0:
+            head_middle_keypoint = (
+                l_ear_keypoint + (nose_keypoint - l_ear_keypoint) * ear_to_nose_frac
+            )
     elif r_ear_keypoint[2] != 0:
         head_middle_keypoint = r_ear_keypoint
     else:
