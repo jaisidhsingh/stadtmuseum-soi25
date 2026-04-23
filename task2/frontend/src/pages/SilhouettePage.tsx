@@ -1,18 +1,18 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { toast } from "@/hooks/use-toast";
 import { t } from "@/lib/localization";
-import { ArrowLeft, LogOut } from "lucide-react";
+import { EXHIBIT_STEP_ACCENTS } from "@/lib/exhibitFlow";
+import { cn } from "@/lib/utils";
+import { ArrowLeft, ArrowRight, LogOut } from "lucide-react";
 
 type ImageResource = {
   id: string;
   url: string;
 };
 
-// Represents user's character selections per body part group
 type CharacterSelections = {
   hat: string | null;
   arms: string | null;
@@ -64,6 +64,24 @@ const PART_GROUPS: PartGroup[] = [
   },
 ];
 
+const SILHOUETTE_LEFT_STEPS: { en: string; de: string }[] = [
+  {
+    en: "Choose a body part row.",
+    de: "Eine Koerperteil-Reihe waehlen.",
+  },
+  {
+    en: "Tap a character thumbnail.",
+    de: "Eine Figuren-Miniatur antippen.",
+  },
+  {
+    en: "Watch your silhouette update live.",
+    de: "Silhouette live in der Vorschau ansehen.",
+  },
+];
+
+const sidePanelFrameClass =
+  "exhibit-panel-edge flex h-full min-h-0 min-w-0 max-h-full flex-col justify-center overflow-hidden rounded-2xl p-2 sm:p-3 md:p-4 max-lg:max-h-[30vh] lg:max-h-none";
+
 const SilhouettePage = () => {
   const navigate = useNavigate();
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -90,13 +108,12 @@ const SilhouettePage = () => {
   const isProcessing = isLoadingOriginal || isLoadingWarped;
   const selectedCount = Object.values(selections).filter(Boolean).length;
 
-  // Derive API payload parts
   const selectedParts = Object.entries(selections)
-    .filter(([_, characterName]) => characterName !== null)
+    .filter(([, characterName]) => characterName !== null)
     .map(([group]) => group);
 
   const characterMapping = Object.fromEntries(
-    Object.entries(selections).filter(([_, char]) => char !== null),
+    Object.entries(selections).filter(([, char]) => char !== null),
   );
 
   const displayResource =
@@ -107,7 +124,6 @@ const SilhouettePage = () => {
     ? `http://localhost:8000${displayResource.url}`
     : null;
 
-  // Initialize
   useEffect(() => {
     const image = sessionStorage.getItem("capturedImage");
     if (image) {
@@ -116,14 +132,12 @@ const SilhouettePage = () => {
       navigate("/camera");
     }
 
-    // Fetch available characters
     fetch("http://localhost:8000/characters")
       .then((res) => res.json())
       .then((data) => setCharacters(data))
       .catch((err) => console.error("Failed to fetch characters", err));
   }, [navigate]);
 
-  // Helper: dataURL → File
   const dataURLtoFile = (dataurl: string, filename: string) => {
     const arr = dataurl.split(",");
     const mimeMatch = arr[0].match(/:(.*?);/);
@@ -137,7 +151,6 @@ const SilhouettePage = () => {
     return new File([u8arr], filename, { type: mime });
   };
 
-  // Effect 1: fetch the original silhouette once when capturedImage is ready
   useEffect(() => {
     if (!capturedImage) return;
     let cancelled = false;
@@ -180,7 +193,6 @@ const SilhouettePage = () => {
     };
   }, [capturedImage]);
 
-  // Effect 2: fetch warped silhouette whenever selections change (debounced)
   useEffect(() => {
     if (!originalResource || !contextId) return;
 
@@ -214,7 +226,7 @@ const SilhouettePage = () => {
       } finally {
         if (!cancelled) setIsLoadingWarped(false);
       }
-    }, 500); // 500ms debounce since warping takes time
+    }, 500);
 
     return () => {
       cancelled = true;
@@ -236,7 +248,6 @@ const SilhouettePage = () => {
     const resource = displayResource;
     if (resource) {
       sessionStorage.setItem("silhouetteData", JSON.stringify(resource));
-      // Optionally store the mapping if needed by next screen
       sessionStorage.setItem("silhouetteStyles", JSON.stringify(selections));
       navigate("/selection");
     }
@@ -259,250 +270,292 @@ const SilhouettePage = () => {
   };
 
   return (
-    <div className="h-full min-h-0 exhibit-shell relative flex w-full flex-col gap-8 overflow-hidden overflow-x-hidden p-4 pt-20 md:flex-row md:p-8 md:pt-8">
-      {/* Top Bar with Back Button */}
-      <div className="absolute top-4 left-4 md:top-8 md:left-8 z-20">
-        <Button
-          variant="outline"
-          size="xl"
-          className="h-14 px-6 text-base md:text-lg rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2 bg-background/80 backdrop-blur-sm"
-          onClick={() => navigate("/camera")}
-        >
-          <ArrowLeft className="w-6 h-6" />{" "}
-          {t("Re-take Photo", "Foto erneut aufnehmen")}
-        </Button>
-      </div>
-      <div className="absolute top-4 right-4 md:top-8 md:right-8 z-20">
-        <Button
-          variant="outline"
-          size="xl"
-          className="h-14 px-6 text-base md:text-lg rounded-xl border-film-red/40 bg-white/80 text-film-red hover:bg-film-red/10 hover:text-film-red"
-          onClick={handleExitSession}
-        >
-          <LogOut className="w-5 h-5" /> {t("Exit Session", "Sitzung beenden")}
-        </Button>
-      </div>
-
-      {/* Left Half: Large Captured Image / Preview */}
-      <div className="flex-1 flex items-center justify-center bg-muted/20 rounded-lg p-4 relative overflow-hidden min-h-[50vh] md:min-h-full">
-        {isProcessing && (
-          <div className="absolute inset-0 bg-background/50 flex flex-col items-center justify-center z-10 backdrop-blur-sm">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-            <p className="text-lg font-medium">
-              {t("Applying styles...", "Stile werden angewendet...")}
-            </p>
+    <div className="exhibit-shell flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden overflow-x-hidden">
+      <div className="w-full flex-shrink-0 px-4 pt-2 pb-2 sm:pt-3 sm:pb-3 md:px-6 md:pt-4 md:pb-4 lg:pt-5 lg:pb-5">
+        <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.85fr)_minmax(0,1.65fr)] items-center gap-2 sm:gap-3 md:gap-4 lg:gap-5">
+          <div className="min-w-0" aria-hidden />
+          <p className="exhibit-title min-w-0 text-center text-2xl font-bold uppercase leading-tight tracking-wider text-film-black md:text-3xl">
+            {t("Step 2 of 4", "Schritt 2 von 4")}
+          </p>
+          <div className="flex min-w-0 items-center justify-end">
+            <Button
+              variant="outline"
+              size="xl"
+              onClick={handleExitSession}
+              className="flex-shrink-0 border-film-red/40 bg-white/80 text-film-red hover:bg-film-red/10 hover:text-film-red"
+            >
+              <LogOut className="h-5 w-5" />
+              {t("EXIT", "ABBRECHEN")}
+            </Button>
           </div>
-        )}
-
-        {previewImage ? (
-          <img
-            src={previewImage}
-            alt={t("Segmented silhouette", "Segmentierte Silhouette")}
-            className="max-h-[80vh] w-auto object-contain rounded-lg shadow-lg"
-          />
-        ) : capturedImage ? (
-          <img
-            src={capturedImage}
-            alt={t("Captured silhouette", "Aufgenommene Silhouette")}
-            className="max-h-[80vh] w-auto object-contain rounded-lg shadow-lg opacity-50 grayscale"
-          />
-        ) : (
-          <p className="text-muted-foreground">
-            {t("Loading image...", "Bild wird geladen...")}
-          </p>
-        )}
+        </div>
       </div>
 
-      {/* Right Half: Style Options */}
-      <div className="w-full md:w-[640px] flex flex-col h-full shrink-0 z-10 pt-4 md:pt-0">
-        <h2 className="text-4xl font-bold mb-2">
-          {t("Step 2: Stylize", "Schritt 2: Silhouette gestalten")}
-        </h2>
-        <p className="text-base md:text-lg text-primary font-medium mb-3 animate-pulse">
-          {t(
-            "Tap the thumbnails below to apply character styles.",
-            "Tippe auf die Miniaturen, um Figuren-Stile anzuwenden.",
-          )}
-        </p>
-
-        <div className="mb-4 rounded-xl border border-film-green/30 bg-film-green/10 p-4">
-          <p className="text-base font-semibold text-film-green md:text-lg">
-            {t("What to do here", "Was du hier machst")}
-          </p>
-          <ul className="mt-2 space-y-1 text-sm text-foreground/90 md:text-base">
-            <li>
-              {t(
-                "1. Choose a body part row.",
-                "1. Eine Koerperteil-Reihe waehlen.",
+      <div className="min-h-0 w-full min-w-0 flex-1 overflow-hidden px-4 pb-3 pt-0 md:px-6 md:pb-4">
+        <div className="grid h-full min-h-0 w-full min-w-0 items-stretch gap-2 sm:gap-3 md:gap-4 max-lg:grid-cols-1 max-lg:grid-rows-[minmax(0,auto)_minmax(0,1fr)_minmax(0,auto)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.85fr)_minmax(0,1.65fr)] lg:grid-rows-1 lg:gap-5">
+          <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden lg:h-full">
+            <div
+              className={cn(
+                sidePanelFrameClass,
+                "!justify-start",
+                "min-h-0 pl-0.5",
+                EXHIBIT_STEP_ACCENTS[1],
               )}
-            </li>
-            <li>
-              {t(
-                "2. Tap a character thumbnail.",
-                "2. Eine Figuren-Miniatur antippen.",
-              )}
-            </li>
-            <li>
-              {t(
-                "3. Watch your silhouette update live.",
-                "3. Silhouette live in der Vorschau ansehen.",
-              )}
-            </li>
-          </ul>
-          <p className="mt-3 inline-flex rounded-full border border-film-blue/30 bg-film-blue/10 px-3 py-1 text-sm font-semibold text-film-blue md:text-base">
-            {selectedCount > 0
-              ? t(
-                  `${selectedCount} style group(s) selected.`,
-                  `${selectedCount} Stil-Gruppe(n) ausgewaehlt.`,
-                )
-              : t(
-                  "No style selected yet. Start with any row.",
-                  "Noch kein Stil ausgewaehlt. Beginne mit einer beliebigen Reihe.",
-                )}
-          </p>
-        </div>
-
-        <ScrollArea className="flex-1 pr-4 -mr-4 pb-8">
-          <div className="space-y-8">
-            {PART_GROUPS.map((group) => (
-              <div key={group.id} className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-2xl font-semibold">
-                    {t(group.labelEn, group.labelDe)}
-                  </h3>
-                </div>
-
-                <ScrollArea className="w-full whitespace-nowrap pb-4">
-                  <div className="flex w-max space-x-4 p-1">
-                    {/* The "None" Selection Card */}
-                    <div
-                      onClick={() =>
-                        setSelections((prev) => ({ ...prev, [group.id]: null }))
-                      }
-                      className={`
-                        relative cursor-pointer overflow-hidden rounded-xl border-2 transition-all duration-200
-                        hover:scale-105 active:scale-95
-                        w-28 h-28 flex-shrink-0 bg-muted/50 flex flex-col items-center justify-center
-                        ${selections[group.id] === null ? "border-primary ring-2 ring-primary/30 bg-primary/5" : "border-transparent hover:border-primary/50"}
-                      `}
+            >
+              <div className="flex h-full min-h-0 w-full min-w-0 max-w-full flex-1 flex-col text-left text-film-black">
+                <h2 className="exhibit-title mb-1.5 w-full min-w-0 shrink-0 text-center text-sm font-semibold uppercase leading-snug tracking-wide sm:mb-2 sm:text-lg md:mb-2.5 md:text-2xl">
+                  {t("What to do here", "Was du hier machst")}
+                </h2>
+                <ol className="exhibit-title flex min-h-0 w-full list-none flex-col pl-0 pr-0.5 text-sm font-medium leading-snug sm:pl-0.5 sm:text-lg sm:leading-snug md:pl-1 md:text-2xl">
+                  {SILHOUETTE_LEFT_STEPS.map((line, i) => (
+                    <li
+                      key={i}
+                      className="flex min-h-0 flex-col justify-center gap-0 py-0.5 [overflow-wrap:anywhere]"
                     >
-                      <div className="w-10 h-10 rounded-full border-2 border-dashed border-muted-foreground/50 flex items-center justify-center mb-2">
-                        <span className="text-muted-foreground/50 text-xl block leading-none rotate-45">
-                          +
+                      <div className="flex min-w-0 items-baseline gap-1.5 sm:gap-2">
+                        <span className="w-4 shrink-0 text-right font-semibold tabular-nums sm:w-5">
+                          {i + 1}
+                          {"."}
+                        </span>
+                        <span className="min-w-0 flex-1 leading-snug">
+                          {t(line.en, line.de)}
                         </span>
                       </div>
-                      <span className="text-sm font-medium text-muted-foreground">
-                        {t("None", "Keine")}
-                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </div>
+          </aside>
 
-                      {/* Selected indicator */}
-                      {selections[group.id] === null && (
-                        <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center shadow-sm">
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="3"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="w-3 h-3"
-                          >
-                            <polyline points="20 6 9 17 4 12"></polyline>
-                          </svg>
-                        </div>
+          <div className="flex h-full min-h-0 min-w-0 flex-col">
+            <div className="exhibit-panel relative grid h-full min-h-0 w-full min-w-0 [grid-template-rows:minmax(0,1fr)_auto] overflow-hidden rounded-2xl p-2 sm:p-3 md:p-4">
+              <div className="relative flex min-h-0 w-full min-w-0 flex-col items-center justify-center">
+                {isProcessing && (
+                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/50 backdrop-blur-sm">
+                    <div className="mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-primary" />
+                    <p className="exhibit-title text-sm font-medium sm:text-lg md:text-xl">
+                      {t("Applying styles...", "Stile werden angewendet...")}
+                    </p>
+                  </div>
+                )}
+
+                {previewImage ? (
+                  <div className="flex h-full w-full min-h-0 min-w-0 items-center justify-center">
+                    <img
+                      src={previewImage}
+                      alt={t("Segmented silhouette", "Segmentierte Silhouette")}
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  </div>
+                ) : capturedImage ? (
+                  <div className="flex h-full w-full min-h-0 min-w-0 items-center justify-center">
+                    <img
+                      src={capturedImage}
+                      alt={t("Captured silhouette", "Aufgenommene Silhouette")}
+                      className="max-h-full max-w-full object-contain opacity-50 grayscale"
+                    />
+                  </div>
+                ) : (
+                  <p className="exhibit-title text-sm text-muted-foreground sm:text-base">
+                    {t("Loading image...", "Bild wird geladen...")}
+                  </p>
+                )}
+              </div>
+
+              <div className="relative z-10 flex w-full min-w-0 flex-col items-stretch justify-center border-t border-border/40 bg-white/95 py-2 pt-2 sm:py-2.5 sm:pt-3">
+                <div className="mx-auto flex w-full max-w-2xl flex-col items-stretch justify-center gap-2 sm:flex-row sm:gap-3 md:gap-4">
+                  <Button
+                    size="xl"
+                    onClick={() => navigate("/camera")}
+                    className="cta-step-3 gap-2 rounded-2xl px-4 py-3 text-base font-semibold uppercase tracking-wider text-white md:px-6 md:py-4"
+                  >
+                    <ArrowLeft className="h-5 w-5" />
+                    {t("RETAKE PHOTO", "FOTO ERNEUT AUFNEHMEN")}
+                  </Button>
+                  <Button
+                    size="xl"
+                    onClick={handleNext}
+                    disabled={!displayResource || isProcessing}
+                    className="cta-step-2 gap-2 rounded-2xl px-4 py-3 text-base font-semibold uppercase tracking-wider text-white md:px-8 md:py-4"
+                  >
+                    {t("BACKGROUNDS", "HINTERGRUENDE")}
+                    <ArrowRight className="h-5 w-5" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Taller than default side panels: Head → Feet must scroll inside; override shared `max-h-[30vh]`. */}
+          <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden max-lg:max-h-[min(60vh,36rem)] lg:h-full">
+            <div
+              className={cn(
+                sidePanelFrameClass,
+                "!items-stretch !justify-start",
+                "h-full min-h-0 max-lg:!max-h-full",
+                "bg-background",
+              )}
+            >
+              <div className="flex h-full min-h-0 w-full min-w-0 flex-col text-film-black">
+                <p
+                  className={cn(
+                    "exhibit-title shrink-0 text-center text-sm font-semibold leading-snug tracking-wide sm:text-lg md:text-2xl",
+                    selectedCount > 0 ? "text-film-green" : "text-film-red",
+                  )}
+                  aria-live="polite"
+                >
+                  {selectedCount > 0
+                    ? t(
+                        `${selectedCount} style group(s) selected.`,
+                        `${selectedCount} Stil-Gruppe(n) ausgewaehlt.`,
+                      )
+                    : t(
+                        "No style selected yet. Start with any row.",
+                        "Noch kein Stil ausgewaehlt. Beginne mit einer beliebigen Reihe.",
                       )}
-                    </div>
-
-                    {/* Character Cards */}
-                    {characters.map((char) => {
-                      const isSelected =
-                        selections[group.id as keyof CharacterSelections] ===
-                        char;
-                      // We start with the first item in the fallbacks array
-                      const initialThumbUrl = `http://localhost:8000/assets/${char}/${group.fallbacks[0]}`;
-
-                      return (
-                        <div
-                          key={char}
-                          onClick={() => toggleSelection(group.id, char)}
-                          className={`
-                            relative cursor-pointer overflow-hidden rounded-xl border-2 transition-all duration-200
-                            hover:scale-105 active:scale-95
-                            w-28 h-28 flex-shrink-0 bg-muted/30
-                            ${isSelected ? "border-primary ring-2 ring-primary/30" : "border-transparent hover:border-primary/50"}
-                          `}
-                        >
-                          <div className="absolute inset-0 p-2 flex items-center justify-center">
-                            <img
-                              src={initialThumbUrl}
-                              alt={`${char} ${t(group.labelEn, group.labelDe)}`}
-                              className="max-w-full max-h-full object-contain drop-shadow-md"
-                              data-fallback-index="0"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                let currentIndex = parseInt(
-                                  target.dataset.fallbackIndex || "0",
-                                  10,
-                                );
-                                currentIndex++;
-
-                                if (currentIndex < group.fallbacks.length) {
-                                  target.dataset.fallbackIndex =
-                                    currentIndex.toString();
-                                  target.src = `http://localhost:8000/assets/${char}/${group.fallbacks[currentIndex]}`;
-                                } else {
-                                  target.style.display = "none";
+                </p>
+                <ScrollArea className="mt-2 min-h-0 w-full flex-1 pr-1">
+                  <div className="space-y-5 pb-1 sm:space-y-6 md:space-y-7">
+                    {PART_GROUPS.map((group) => (
+                      <div key={group.id} className="min-w-0 space-y-2">
+                        <h3 className="exhibit-title text-center text-sm font-semibold leading-snug tracking-wide sm:text-lg md:text-2xl">
+                          {t(group.labelEn, group.labelDe)}
+                        </h3>
+                        <ScrollArea className="w-full max-w-full whitespace-nowrap">
+                          <div className="flex w-max min-w-0 max-w-full space-x-3 p-0.5 sm:space-x-4">
+                            <div
+                              role="button"
+                              tabIndex={0}
+                              onClick={() =>
+                                setSelections((prev) => ({
+                                  ...prev,
+                                  [group.id]: null,
+                                }))
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  setSelections((prev) => ({
+                                    ...prev,
+                                    [group.id]: null,
+                                  }));
                                 }
                               }}
-                            />
-                          </div>
-
-                          {/* Label overlay (commented out per user request)
-                          <div className="absolute bottom-0 inset-x-0 bg-background/80 backdrop-blur-sm p-1.5 text-center">
-                            <p className="text-[10px] font-medium leading-tight truncate">
-                              {char.replace(/_/g, " ")}
-                            </p>
-                          </div>
-                          */}
-
-                          {/* Selected indicator */}
-                          {isSelected && (
-                            <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center shadow-sm">
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="3"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                className="w-3 h-3"
-                              >
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                              </svg>
+                              className={`
+                                relative flex h-24 w-24 flex-shrink-0 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border-2 transition-all duration-200
+                                hover:scale-105 active:scale-95 sm:h-28 sm:w-28
+                                ${selections[group.id] === null ? "border-primary bg-primary/5 ring-2 ring-primary/30" : "border-transparent bg-muted/50 hover:border-primary/50"}
+                              `}
+                            >
+                              <div className="mb-1.5 flex h-9 w-9 items-center justify-center rounded-full border-2 border-dashed border-muted-foreground/50 sm:mb-2 sm:h-10 sm:w-10">
+                                <span className="block rotate-45 text-xl leading-none text-muted-foreground/50">
+                                  +
+                                </span>
+                              </div>
+                              <span className="exhibit-title text-[0.7rem] font-medium text-muted-foreground sm:text-sm">
+                                {t("None", "Keine")}
+                              </span>
+                              {selections[group.id] === null && (
+                                <div className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="3"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    className="h-3 w-3"
+                                  >
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
-                      );
-                    })}
+
+                            {characters.map((char) => {
+                              const isSelected =
+                                selections[
+                                  group.id as keyof CharacterSelections
+                                ] === char;
+                              const initialThumbUrl = `http://localhost:8000/assets/${char}/${group.fallbacks[0]}`;
+
+                              return (
+                                <div
+                                  key={char}
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={() =>
+                                    toggleSelection(group.id, char)
+                                  }
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault();
+                                      toggleSelection(group.id, char);
+                                    }
+                                  }}
+                                  className={`
+                                    relative h-24 w-24 flex-shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 bg-muted/30 transition-all duration-200
+                                    hover:scale-105 active:scale-95 sm:h-28 sm:w-28
+                                    ${isSelected ? "border-primary ring-2 ring-primary/30" : "border-transparent hover:border-primary/50"}
+                                  `}
+                                >
+                                  <div className="absolute inset-0 flex items-center justify-center p-1.5 sm:p-2">
+                                    <img
+                                      src={initialThumbUrl}
+                                      alt={`${char} ${t(group.labelEn, group.labelDe)}`}
+                                      className="max-h-full max-w-full object-contain drop-shadow-md"
+                                      data-fallback-index="0"
+                                      onError={(e) => {
+                                        const target =
+                                          e.target as HTMLImageElement;
+                                        let currentIndex = parseInt(
+                                          target.dataset.fallbackIndex || "0",
+                                          10,
+                                        );
+                                        currentIndex++;
+                                        if (
+                                          currentIndex < group.fallbacks.length
+                                        ) {
+                                          target.dataset.fallbackIndex =
+                                            currentIndex.toString();
+                                          target.src = `http://localhost:8000/assets/${char}/${group.fallbacks[currentIndex]}`;
+                                        } else {
+                                          target.style.display = "none";
+                                        }
+                                      }}
+                                    />
+                                  </div>
+                                  {isSelected && (
+                                    <div className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+                                      <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="3"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        className="h-3 w-3"
+                                      >
+                                        <polyline points="20 6 9 17 4 12" />
+                                      </svg>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <ScrollBar orientation="horizontal" />
+                        </ScrollArea>
+                      </div>
+                    ))}
                   </div>
-                  <ScrollBar orientation="horizontal" />
                 </ScrollArea>
               </div>
-            ))}
-          </div>
-        </ScrollArea>
-
-        <div className="mt-4 pt-4">
-          <Button
-            size="xl"
-            className="h-14 cta-step-3 w-full text-base text-white md:text-lg"
-            onClick={handleNext}
-            disabled={!displayResource || isProcessing}
-          >
-            {t("Continue to Backgrounds", "Weiter zu Hintergruenden")}
-          </Button>
+            </div>
+          </aside>
         </div>
       </div>
     </div>

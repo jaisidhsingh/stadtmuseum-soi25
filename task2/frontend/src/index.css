@@ -151,10 +151,10 @@ All colors MUST be HSL.
 		@apply border-border;
 	}
 
-	/* Keep vertical scrollbar lane always — modal scroll-lock won't widen the layout. */
+	/* No viewport scrollbars — scroll lives inside `app-shell` / per-page regions (dialogs, panels, etc.). */
 	html {
-		scrollbar-gutter: stable;
-		overflow-y: scroll;
+		height: 100%;
+		overflow: hidden;
 	}
 
 	body {
@@ -165,14 +165,17 @@ All colors MUST be HSL.
 			radial-gradient(circle at 88% 18%, hsl(var(--film-blue) / 0.16), transparent 34%),
 			radial-gradient(circle at 84% 90%, hsl(var(--film-red) / 0.12), transparent 32%),
 			linear-gradient(180deg, hsl(45 35% 98%), hsl(45 26% 95%));
-		min-height: 100vh;
-		overflow-x: hidden;
+		min-height: 100%;
+		height: 100%;
+		overflow: hidden;
 		font-size: clamp(15px, 0.9vw, 19px);
 		line-height: 1.45;
 	}
 
 	#root {
-		min-height: 100vh;
+		height: 100%;
+		min-height: 100dvh;
+		overflow: hidden;
 	}
 }
 
@@ -182,6 +185,11 @@ All colors MUST be HSL.
 	}
 
 	.app-shell > main > .exhibit-shell.start-page-shell {
+		background: hsl(0 0% 0%);
+	}
+
+	/* `Routes` wrapper between `main` and the page — keep the start route black. */
+	.app-shell main .exhibit-shell.start-page-shell {
 		background: hsl(0 0% 0%);
 	}
 
@@ -196,7 +204,16 @@ All colors MUST be HSL.
 		background: hsl(0, 0%, 100%);
 		backdrop-filter: blur(6px);
 		border: 1px solid hsl(var(--border));
-		box-shadow: 0 10px 34px hsl(var(--film-black) / 0.12);
+		/* Ambient only (0 offset): even falloff on all sides; matches rounded-2xl */
+		box-shadow: 0 0 22px hsl(var(--film-black) / 0.08);
+	}
+
+	/* Tinted side panels: border + blur only. No outer box-shadow here — if it matches
+	   `.exhibit-panel`, the two cards’ glows stack in the column gutter and read as a
+	   straight dark vertical line (not a rounded per-card shadow). */
+	.exhibit-panel-edge {
+		backdrop-filter: blur(6px);
+		border: 1px solid hsl(var(--border));
 	}
 
 	.exhibit-title {
@@ -212,6 +229,13 @@ All colors MUST be HSL.
 			0 0 22px hsl(var(--film-yellow) / 0.24),
 			0 0 36px hsl(var(--film-yellow) / 0.12),
 			0 1px 3px hsl(var(--film-black) / 0.35);
+	}
+
+	/* Same halo for SVG icons (text-shadow does not apply to stroke the same way) */
+	.hero-title-yellow-glow-icon {
+		color: hsl(0 0% 100%);
+		filter:
+			drop-shadow(0 0 10px hsl(var(--film-yellow) / 0.42)) drop-shadow(0 0 22px hsl(var(--film-yellow) / 0.24)) drop-shadow(0 0 36px hsl(var(--film-yellow) / 0.12)) drop-shadow(0 1px 3px hsl(var(--film-black) / 0.35));
 	}
 
 	.film-tag {
@@ -260,31 +284,37 @@ All colors MUST be HSL.
 		transition: transform 190ms ease, box-shadow 190ms ease, filter 190ms ease;
 	}
 
+	/* !important: shadcn `Button` adds `bg-primary` (film blue) in the utilities layer, which
+	   otherwise wins over these rules and makes CTAs look dull / wrong (esp. cta-step-2 = START & Capture). */
 	.cta-step-1 {
-		background: hsl(var(--film-blue));
-		color: white;
+		background: hsl(var(--film-blue)) !important;
+		color: white !important;
 	}
 
 	.cta-step-2 {
-		background: hsl(var(--film-green));
-		color: white;
+		background: hsl(var(--film-green)) !important;
+		color: white !important;
 	}
 
-	/* Start page START: white letters with black outline */
+	/* Start page START: white text; soft shadow only (0-blur ring stacks = pixelated on Windows) */
 	.cta-step-2.cta-start-outlined {
-		color: #fff;
-		-webkit-text-stroke: 1.5px hsl(var(--film-black));
-		paint-order: stroke fill;
+		color: #fff !important;
+		text-rendering: optimizeLegibility;
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+		text-shadow:
+			0 1px 2px hsl(var(--film-black) / 0.5),
+			0 2px 8px hsl(var(--film-black) / 0.28);
 	}
 
 	.cta-step-3 {
-		background: hsl(var(--film-red));
-		color: white;
+		background: hsl(var(--film-red)) !important;
+		color: white !important;
 	}
 
 	.cta-step-4 {
-		background: hsl(var(--film-yellow));
-		color: hsl(220 40% 12%);
+		background: hsl(var(--film-yellow)) !important;
+		color: hsl(220 40% 12%) !important;
 	}
 
 	.cta-step-1:hover,
@@ -294,6 +324,19 @@ All colors MUST be HSL.
 		transform: translateY(-1px);
 		filter: brightness(0.95);
 		box-shadow: 0 10px 24px hsl(var(--film-black) / 0.2);
+	}
+
+	.cta-step-1:hover {
+		background: hsl(var(--film-blue)) !important;
+	}
+	.cta-step-2:hover {
+		background: hsl(var(--film-green)) !important;
+	}
+	.cta-step-3:hover {
+		background: hsl(var(--film-red)) !important;
+	}
+	.cta-step-4:hover {
+		background: hsl(var(--film-yellow)) !important;
 	}
 
 	.cta-step-1:disabled,

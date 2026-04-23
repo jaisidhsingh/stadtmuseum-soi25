@@ -9,29 +9,26 @@ import SilhouettePage from "./pages/SilhouettePage";
 import SelectionPage from "./pages/SelectionPage";
 import ConfirmationPage from "./pages/ConfirmationPage";
 import TestInputPage from "./pages/TestInputPage";
-import PrivacyFooter from "./components/PrivacyFooter";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 const AppContent = () => {
-  // Show footer on all pages
-  const showFooter = true;
-
   return (
-    <div className="app-shell min-h-screen exhibit-shell flex flex-col overflow-hidden">
-      <main className="flex min-h-0 flex-1 flex-col">
-        <Routes>
-          <Route path="/" element={<StartPage />} />
-          <Route path="/camera" element={<TestInputPage />} />
-          <Route path="/test-input" element={<TestInputPage />} />
-          <Route path="/silhouette" element={<SilhouettePage />} />
-          <Route path="/selection" element={<SelectionPage />} />
-          <Route path="/confirmation" element={<ConfirmationPage />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+    <div className="app-shell flex h-svh min-h-0 max-h-svh flex-col overflow-hidden">
+      <main className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <Routes>
+            <Route path="/" element={<StartPage />} />
+            <Route path="/camera" element={<TestInputPage />} />
+            <Route path="/test-input" element={<TestInputPage />} />
+            <Route path="/silhouette" element={<SilhouettePage />} />
+            <Route path="/selection" element={<SelectionPage />} />
+            <Route path="/confirmation" element={<ConfirmationPage />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </div>
       </main>
-      {showFooter && <PrivacyFooter />}
     </div>
   );
 };

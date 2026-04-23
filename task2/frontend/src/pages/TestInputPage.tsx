@@ -38,31 +38,31 @@ const TestInputPage = () => {
   };
 
   return (
-    <div className="h-full min-h-0 overflow-auto bg-background p-8">
-      <h1 className="text-2xl font-bold text-center mb-4">
+    <div className="exhibit-shell flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden overflow-x-hidden bg-background px-4 py-3 md:px-6 md:py-4">
+      <h1 className="shrink-0 text-center text-lg font-bold md:text-xl">
         {t("Test Input", "Testeingabe")}
       </h1>
-      <p className="text-center text-muted-foreground mb-8">
+      <p className="mt-1 shrink-0 text-center text-xs text-muted-foreground md:text-sm">
         {t(
           "Using predefined test image instead of camera.",
           "Vordefiniertes Testbild statt Kamera wird verwendet.",
         )}
       </p>
 
-      <div className="max-w-2xl mx-auto">
-        <Card>
-          <CardContent className="p-6">
-            <div className="space-y-4">
+      <div className="mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col pt-2">
+        <Card className="flex min-h-0 flex-1 flex-col overflow-hidden border border-border/80 shadow-sm">
+          <CardContent className="flex min-h-0 flex-1 flex-col gap-2 p-3 md:p-4">
+            <div className="flex min-h-0 flex-1 items-center justify-center">
               <img
                 src={dummyImage}
                 alt={t("Test input", "Testeingabe")}
-                className="w-full rounded-lg"
+                className="max-h-full max-w-full rounded-lg object-contain"
               />
-              <div className="flex justify-center gap-4">
-                <Button onClick={proceedToSelection} disabled={!imageBase64}>
-                  {t("Proceed with Test Image", "Mit Testbild fortfahren")}
-                </Button>
-              </div>
+            </div>
+            <div className="flex shrink-0 justify-center gap-3 pb-0.5 pt-1">
+              <Button onClick={proceedToSelection} disabled={!imageBase64}>
+                {t("Proceed with Test Image", "Mit Testbild fortfahren")}
+              </Button>
             </div>
           </CardContent>
         </Card>
