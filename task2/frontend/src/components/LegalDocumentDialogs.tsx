@@ -4,7 +4,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { exhibitStepDefaultDescriptionClass } from "@/components/ExhibitStepCard";
 import { t } from "@/lib/localization";
+import { cn } from "@/lib/utils";
 
 /** Match consent dialog: no scroll-lock jump, no enter/exit motion, edge sealing. */
 export const LEGAL_DIALOG_OVERLAY_CLASS =
@@ -34,7 +36,12 @@ export function PrivacyPolicyDocumentDialog({
             {t("Privacy Policy", "Datenschutzerklaerung")}
           </DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 text-sm text-film-black md:text-base">
+        <div
+          className={cn(
+            "space-y-4 text-film-black",
+            exhibitStepDefaultDescriptionClass,
+          )}
+        >
           <p>
             {t(
               "Your photo is used only to create your personalized artwork. We do not store your original photo after processing.",
@@ -72,7 +79,12 @@ export function TermsDocumentDialog({ open, onOpenChange }: LegalDialogProps) {
             {t("Terms and Conditions", "Nutzungsbedingungen")}
           </DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 text-sm text-film-black md:text-base">
+        <div
+          className={cn(
+            "space-y-4 text-film-black",
+            exhibitStepDefaultDescriptionClass,
+          )}
+        >
           <p>
             {t(
               "By using this exhibit, you agree that your image may be processed for artistic purposes.",

@@ -349,4 +349,12 @@ All colors MUST be HSL.
 		transform: none;
 		filter: grayscale(0.12);
 	}
+
+	/* Selection page: keep the raised shadow when disabled so the bar doesn’t “pop” when
+	   a scene is selected; still use the same grayscale as other disabled CTAs + default
+	   button opacity for a greyed-out look. */
+	.cta-step-4.cta-qr-steady:disabled {
+		box-shadow: 0 8px 20px hsl(var(--film-black) / 0.14);
+		filter: grayscale(0.12);
+	}
 }
