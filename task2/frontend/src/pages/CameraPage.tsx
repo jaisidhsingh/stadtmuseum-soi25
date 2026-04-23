@@ -2,9 +2,16 @@ import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { CameraStepCard } from "@/components/CameraStepCard";
+import { FlowStepIndicator } from "@/components/FlowStepIndicator";
 import { type ExhibitStepIndex } from "@/lib/exhibitFlow";
 import { cn } from "@/lib/utils";
 import { t } from "@/lib/localization";
+import {
+  captureButtonClassName,
+  continueButtonClassName,
+  flowExitButtonClassName,
+  retakeButtonClassName,
+} from "@/lib/flowCtaClassNames";
 import { Camera, RefreshCcw, ArrowRight, LogOut } from "lucide-react";
 
 const COUNTDOWN_SECONDS = 10;
@@ -39,10 +46,6 @@ const CAMERA_STEP1_INSTRUCTION_LINES: { en: string; de: string }[] = [
     de: "Weiter zum naechsten Schritt oder erneut aufnehmen.",
   },
 ];
-
-/** Match Start page START: green + outlined halo + size */
-const captureButtonClassName =
-  "cta-step-2 cta-start-outlined w-full min-h-14 max-w-2xl rounded-2xl py-3 text-xl font-bold uppercase tracking-[0.18em] text-white md:min-h-16 md:py-4 md:text-3xl";
 
 const CameraPage = () => {
   const navigate = useNavigate();
@@ -169,20 +172,17 @@ const CameraPage = () => {
   return (
     <div className="exhibit-shell flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden overflow-x-hidden">
       {/* Same 3 column template as the main grid: title left (column 1) with the step cards, EXIT in column 3. */}
-      <div className="w-full flex-shrink-0 px-4 pt-2 pb-2 sm:pt-3 sm:pb-3 md:px-6 md:pt-4 md:pb-4 lg:pt-5 lg:pb-5">
+      <div className="w-full flex-shrink-0 px-4 pt-1 pb-1 sm:pt-2 sm:pb-2 md:px-6 md:pt-2 md:pb-2 lg:pt-3 lg:pb-3">
         <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.85fr)_minmax(0,1.65fr)] items-center gap-2 sm:gap-3 md:gap-4 lg:gap-5">
-          <p className="exhibit-title min-w-0 text-left text-2xl font-bold uppercase leading-tight tracking-wider text-film-black md:text-3xl">
-            {t("Step 1 of 4", "Schritt 1 / 4")}
-          </p>
+          <FlowStepIndicator activeStepIndex={0} className="min-w-0 pl-2 sm:pl-3" />
           <div className="min-w-0" aria-hidden />
           <div className="flex min-w-0 items-center justify-end">
             <Button
-              variant="outline"
               size="xl"
               onClick={handleExitSession}
-              className="flex-shrink-0 border-film-red/40 bg-white/80 text-film-red hover:bg-film-red/10 hover:text-film-red"
+              className={flowExitButtonClassName}
             >
-              <LogOut className="h-5 w-5" />
+              <LogOut className="shrink-0" />
               {t("EXIT", "ABBRECHEN")}
             </Button>
           </div>
@@ -239,9 +239,9 @@ const CameraPage = () => {
           <div className="flex h-full min-h-0 min-w-0 flex-col">
             {/* `grid` 1fr + auto so the action row never gets clipped (flex+flex-1 could squeeze it to 0 with overflow-hidden). */}
             <div
-              className="exhibit-panel relative grid h-full min-h-0 w-full min-w-0 [grid-template-rows:minmax(0,1fr)_auto] overflow-hidden rounded-2xl p-2 sm:p-3 md:p-4"
+              className="exhibit-panel relative grid h-full min-h-0 w-full min-w-0 [grid-template-rows:minmax(0,1fr)_auto] overflow-hidden rounded-2xl p-0"
             >
-              <div className="relative flex min-h-0 w-full min-w-0 flex-col items-center justify-center">
+              <div className="relative flex min-h-0 w-full min-w-0 flex-col items-center justify-center p-2 sm:p-3 md:p-4">
                 {error ? (
                   <div className="flex w-full min-w-0 max-w-full flex-col items-center gap-6 text-center">
                     <p className="exhibit-title max-w-full px-2 text-sm font-medium leading-snug text-balance text-destructive sm:text-lg sm:leading-snug md:max-w-xl md:text-2xl">
@@ -284,42 +284,50 @@ const CameraPage = () => {
               </div>
 
               {!error ? (
-                <div className="relative z-10 flex w-full min-w-0 flex-col items-stretch justify-center border-t border-border/40 bg-white/95 py-2 pt-2 sm:py-2.5 sm:pt-3">
-                  {capturedImage ? (
-                    <div className="flex w-full max-w-2xl flex-col items-stretch justify-center gap-2 self-center sm:flex-row sm:gap-3 md:gap-4">
+                <div className="relative z-10 flex w-full min-w-0 flex-col items-stretch justify-center border-t border-border/40 bg-white/95 px-2 py-2 pt-2 sm:px-3 sm:py-2.5 sm:pt-3 md:px-4 md:py-2.5 md:pt-3">
+                  <div
+                    className={cn(
+                      "grid w-full min-w-0 items-stretch gap-2 sm:gap-3 md:gap-4",
+                      "grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]",
+                      "[&>button]:max-w-none [&>button]:min-w-0 [&>button]:w-full",
+                    )}
+                  >
+                    {capturedImage ? (
+                      <>
+                        <Button
+                          size="xl"
+                          onClick={retakePhoto}
+                          className={retakeButtonClassName}
+                        >
+                          <RefreshCcw className="shrink-0" />
+                          {t("RETAKE PHOTO", "FOTO ERNEUT AUFNEHMEN")}
+                        </Button>
+                        <Button
+                          size="xl"
+                          onClick={proceedToSelection}
+                          className={continueButtonClassName}
+                        >
+                          {t("Continue", "Weiter")}
+                          <ArrowRight className="shrink-0" />
+                        </Button>
+                      </>
+                    ) : (
                       <Button
                         size="xl"
-                        onClick={retakePhoto}
-                        className="cta-step-3 gap-2 rounded-2xl px-4 py-3 text-base font-semibold uppercase tracking-wider text-white md:px-6 md:py-4"
+                        onClick={startCountdown}
+                        disabled={!!error || countdownSeconds !== null}
+                        className={cn("col-span-full", captureButtonClassName)}
                       >
-                        <RefreshCcw className="h-5 w-5" />
-                        {t("RETAKE PHOTO", "FOTO ERNEUT AUFNEHMEN")}
+                        <Camera className="shrink-0" />
+                        {countdownSeconds !== null
+                          ? t(
+                              `Capturing in ${countdownSeconds}...`,
+                              `Aufnahme in ${countdownSeconds}...`,
+                            )
+                          : t("Capture", "Aufnehmen")}
                       </Button>
-                      <Button
-                        size="xl"
-                        onClick={proceedToSelection}
-                        className="cta-step-2 gap-2 rounded-2xl px-4 py-3 text-base font-semibold uppercase tracking-wider text-white md:px-8 md:py-4"
-                      >
-                        {t("Continue", "Weiter")}
-                        <ArrowRight className="h-5 w-5" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      size="xl"
-                      onClick={startCountdown}
-                      disabled={!!error || countdownSeconds !== null}
-                      className={`mx-auto w-full max-w-2xl items-center justify-center gap-3 ${captureButtonClassName}`}
-                    >
-                      <Camera className="h-6 w-6 md:h-7 md:w-7" />
-                      {countdownSeconds !== null
-                        ? t(
-                            `Capturing in ${countdownSeconds}...`,
-                            `Aufnahme in ${countdownSeconds}...`,
-                          )
-                        : t("Capture", "Aufnehmen")}
-                    </Button>
-                  )}
+                    )}
+                  </div>
                 </div>
               ) : null}
             </div>

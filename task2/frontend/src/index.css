@@ -297,7 +297,9 @@ All colors MUST be HSL.
 	}
 
 	/* Start page START: white text; soft shadow only (0-blur ring stacks = pixelated on Windows) */
-	.cta-step-2.cta-start-outlined {
+	.cta-step-1.cta-start-outlined,
+	.cta-step-2.cta-start-outlined,
+	.cta-step-3.cta-start-outlined {
 		color: #fff !important;
 		text-rendering: optimizeLegibility;
 		-webkit-font-smoothing: antialiased;

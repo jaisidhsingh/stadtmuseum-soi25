@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { FlowStepIndicator } from "@/components/FlowStepIndicator";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -211,7 +212,7 @@ const ConfirmationPage = () => {
             {t("Share Locked", "Freigabe gesperrt")}
           </span>
         )}
-        <span className="film-tag">{t("Step 4 of 4", "Schritt 4 von 4")}</span>
+        <FlowStepIndicator activeStepIndex={3} className="shrink-0" />
       </div>
 
       <header className="exhibit-panel mb-4 rounded-2xl p-4 md:p-6">

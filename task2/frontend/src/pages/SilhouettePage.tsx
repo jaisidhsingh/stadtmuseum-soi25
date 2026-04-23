@@ -1,10 +1,17 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { FlowStepIndicator } from "@/components/FlowStepIndicator";
+import { SilhouetteLeftColumn } from "@/components/SilhouetteLeftColumn";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { toast } from "@/hooks/use-toast";
+import {
+  continueButtonClassName,
+  filmBlueCtaClassName,
+  flowExitButtonClassName,
+  retakeButtonClassName,
+} from "@/lib/flowCtaClassNames";
 import { t } from "@/lib/localization";
-import { EXHIBIT_STEP_ACCENTS } from "@/lib/exhibitFlow";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, ArrowRight, LogOut } from "lucide-react";
 
@@ -61,21 +68,6 @@ const PART_GROUPS: PartGroup[] = [
     labelEn: "Feet",
     labelDe: "Fuesse",
     fallbacks: ["feet_thumbnail.png", "right_foot.png", "left_foot.png"],
-  },
-];
-
-const SILHOUETTE_LEFT_STEPS: { en: string; de: string }[] = [
-  {
-    en: "Choose a body part row.",
-    de: "Eine Koerperteil-Reihe waehlen.",
-  },
-  {
-    en: "Tap a character thumbnail.",
-    de: "Eine Figuren-Miniatur antippen.",
-  },
-  {
-    en: "Watch your silhouette update live.",
-    de: "Silhouette live in der Vorschau ansehen.",
   },
 ];
 
@@ -271,20 +263,13 @@ const SilhouettePage = () => {
 
   return (
     <div className="exhibit-shell flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden overflow-x-hidden">
-      <div className="w-full flex-shrink-0 px-4 pt-2 pb-2 sm:pt-3 sm:pb-3 md:px-6 md:pt-4 md:pb-4 lg:pt-5 lg:pb-5">
+      <div className="w-full flex-shrink-0 px-4 pt-1 pb-1 sm:pt-2 sm:pb-2 md:px-6 md:pt-2 md:pb-2 lg:pt-3 lg:pb-3">
         <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.85fr)_minmax(0,1.65fr)] items-center gap-2 sm:gap-3 md:gap-4 lg:gap-5">
+          <FlowStepIndicator activeStepIndex={1} className="min-w-0 pl-2 sm:pl-3" />
           <div className="min-w-0" aria-hidden />
-          <p className="exhibit-title min-w-0 text-center text-2xl font-bold uppercase leading-tight tracking-wider text-film-black md:text-3xl">
-            {t("Step 2 of 4", "Schritt 2 von 4")}
-          </p>
           <div className="flex min-w-0 items-center justify-end">
-            <Button
-              variant="outline"
-              size="xl"
-              onClick={handleExitSession}
-              className="flex-shrink-0 border-film-red/40 bg-white/80 text-film-red hover:bg-film-red/10 hover:text-film-red"
-            >
-              <LogOut className="h-5 w-5" />
+            <Button size="xl" onClick={handleExitSession} className={flowExitButtonClassName}>
+              <LogOut className="shrink-0" />
               {t("EXIT", "ABBRECHEN")}
             </Button>
           </div>
@@ -293,44 +278,11 @@ const SilhouettePage = () => {
 
       <div className="min-h-0 w-full min-w-0 flex-1 overflow-hidden px-4 pb-3 pt-0 md:px-6 md:pb-4">
         <div className="grid h-full min-h-0 w-full min-w-0 items-stretch gap-2 sm:gap-3 md:gap-4 max-lg:grid-cols-1 max-lg:grid-rows-[minmax(0,auto)_minmax(0,1fr)_minmax(0,auto)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.85fr)_minmax(0,1.65fr)] lg:grid-rows-1 lg:gap-5">
-          <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden lg:h-full">
-            <div
-              className={cn(
-                sidePanelFrameClass,
-                "!justify-start",
-                "min-h-0 pl-0.5",
-                EXHIBIT_STEP_ACCENTS[1],
-              )}
-            >
-              <div className="flex h-full min-h-0 w-full min-w-0 max-w-full flex-1 flex-col text-left text-film-black">
-                <h2 className="exhibit-title mb-1.5 w-full min-w-0 shrink-0 text-center text-sm font-semibold uppercase leading-snug tracking-wide sm:mb-2 sm:text-lg md:mb-2.5 md:text-2xl">
-                  {t("What to do here", "Was du hier machst")}
-                </h2>
-                <ol className="exhibit-title flex min-h-0 w-full list-none flex-col pl-0 pr-0.5 text-sm font-medium leading-snug sm:pl-0.5 sm:text-lg sm:leading-snug md:pl-1 md:text-2xl">
-                  {SILHOUETTE_LEFT_STEPS.map((line, i) => (
-                    <li
-                      key={i}
-                      className="flex min-h-0 flex-col justify-center gap-0 py-0.5 [overflow-wrap:anywhere]"
-                    >
-                      <div className="flex min-w-0 items-baseline gap-1.5 sm:gap-2">
-                        <span className="w-4 shrink-0 text-right font-semibold tabular-nums sm:w-5">
-                          {i + 1}
-                          {"."}
-                        </span>
-                        <span className="min-w-0 flex-1 leading-snug">
-                          {t(line.en, line.de)}
-                        </span>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            </div>
-          </aside>
+          <SilhouetteLeftColumn />
 
           <div className="flex h-full min-h-0 min-w-0 flex-col">
-            <div className="exhibit-panel relative grid h-full min-h-0 w-full min-w-0 [grid-template-rows:minmax(0,1fr)_auto] overflow-hidden rounded-2xl p-2 sm:p-3 md:p-4">
-              <div className="relative flex min-h-0 w-full min-w-0 flex-col items-center justify-center">
+            <div className="exhibit-panel relative grid h-full min-h-0 w-full min-w-0 [grid-template-rows:minmax(0,1fr)_auto] overflow-hidden rounded-2xl p-0">
+              <div className="relative flex min-h-0 w-full min-w-0 flex-col items-center justify-center p-2 sm:p-3 md:p-4">
                 {isProcessing && (
                   <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/50 backdrop-blur-sm">
                     <div className="mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-primary" />
@@ -363,24 +315,30 @@ const SilhouettePage = () => {
                 )}
               </div>
 
-              <div className="relative z-10 flex w-full min-w-0 flex-col items-stretch justify-center border-t border-border/40 bg-white/95 py-2 pt-2 sm:py-2.5 sm:pt-3">
-                <div className="mx-auto flex w-full max-w-2xl flex-col items-stretch justify-center gap-2 sm:flex-row sm:gap-3 md:gap-4">
+              <div className="relative z-10 flex w-full min-w-0 flex-col items-stretch justify-center border-t border-border/40 bg-white/95 px-2 py-2 pt-2 sm:px-3 sm:py-2.5 sm:pt-3 md:px-4 md:py-2.5 md:pt-3">
+                <div
+                  className={cn(
+                    "grid w-full min-w-0 items-stretch gap-2 sm:gap-3 md:gap-4",
+                    "grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]",
+                    "[&>button]:max-w-none [&>button]:min-w-0 [&>button]:w-full",
+                  )}
+                >
                   <Button
                     size="xl"
                     onClick={() => navigate("/camera")}
-                    className="cta-step-3 gap-2 rounded-2xl px-4 py-3 text-base font-semibold uppercase tracking-wider text-white md:px-6 md:py-4"
+                    className={retakeButtonClassName}
                   >
-                    <ArrowLeft className="h-5 w-5" />
+                    <ArrowLeft className="shrink-0" />
                     {t("RETAKE PHOTO", "FOTO ERNEUT AUFNEHMEN")}
                   </Button>
                   <Button
                     size="xl"
                     onClick={handleNext}
                     disabled={!displayResource || isProcessing}
-                    className="cta-step-2 gap-2 rounded-2xl px-4 py-3 text-base font-semibold uppercase tracking-wider text-white md:px-8 md:py-4"
+                    className={continueButtonClassName}
                   >
                     {t("BACKGROUNDS", "HINTERGRUENDE")}
-                    <ArrowRight className="h-5 w-5" />
+                    <ArrowRight className="shrink-0" />
                   </Button>
                 </div>
               </div>
@@ -398,28 +356,16 @@ const SilhouettePage = () => {
               )}
             >
               <div className="flex h-full min-h-0 w-full min-w-0 flex-col text-film-black">
-                <p
-                  className={cn(
-                    "exhibit-title shrink-0 text-center text-sm font-semibold leading-snug tracking-wide sm:text-lg md:text-2xl",
-                    selectedCount > 0 ? "text-film-green" : "text-film-red",
-                  )}
-                  aria-live="polite"
-                >
-                  {selectedCount > 0
-                    ? t(
-                        `${selectedCount} style group(s) selected.`,
-                        `${selectedCount} Stil-Gruppe(n) ausgewaehlt.`,
-                      )
-                    : t(
-                        "No style selected yet. Start with any row.",
-                        "Noch kein Stil ausgewaehlt. Beginne mit einer beliebigen Reihe.",
-                      )}
-                </p>
-                <ScrollArea className="mt-2 min-h-0 w-full flex-1 pr-1">
+                <div className="shrink-0 px-0.5 pb-3 sm:px-1 sm:pb-4" role="status">
+                  <div className={cn(filmBlueCtaClassName, "shrink-0")}>
+                    {t("SURPRISE ME!", "UEBERRASCH MICH!")}
+                  </div>
+                </div>
+                <ScrollArea className="min-h-0 w-full flex-1 pr-1">
                   <div className="space-y-5 pb-1 sm:space-y-6 md:space-y-7">
                     {PART_GROUPS.map((group) => (
                       <div key={group.id} className="min-w-0 space-y-2">
-                        <h3 className="exhibit-title text-center text-sm font-semibold leading-snug tracking-wide sm:text-lg md:text-2xl">
+                        <h3 className="exhibit-title text-center text-[1.1875rem] font-semibold leading-snug tracking-wide md:text-[2rem]">
                           {t(group.labelEn, group.labelDe)}
                         </h3>
                         <ScrollArea className="w-full max-w-full whitespace-nowrap">
@@ -453,7 +399,7 @@ const SilhouettePage = () => {
                                   +
                                 </span>
                               </div>
-                              <span className="exhibit-title text-[0.7rem] font-medium text-muted-foreground sm:text-sm">
+                              <span className="exhibit-title text-center text-[1.1875rem] font-semibold leading-snug tracking-wide text-muted-foreground md:text-[1.5rem]">
                                 {t("None", "Keine")}
                               </span>
                               {selections[group.id] === null && (
@@ -553,6 +499,23 @@ const SilhouettePage = () => {
                     ))}
                   </div>
                 </ScrollArea>
+                <p
+                  className={cn(
+                    "exhibit-title mt-2 shrink-0 text-center text-[1.1875rem] font-semibold leading-snug tracking-wide md:text-[2rem]",
+                    selectedCount > 0 ? "text-film-green" : "text-film-red",
+                  )}
+                  aria-live="polite"
+                >
+                  {selectedCount > 0
+                    ? t(
+                        `${selectedCount} style group(s) selected.`,
+                        `${selectedCount} Stil-Gruppe(n) ausgewaehlt.`,
+                      )
+                    : t(
+                        "No style selected yet! Start with any row.",
+                        "Noch kein Stil ausgewaehlt! Beginne mit einer beliebigen Reihe.",
+                      )}
+                </p>
               </div>
             </div>
           </aside>

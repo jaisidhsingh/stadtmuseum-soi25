@@ -18,12 +18,12 @@ type CameraStepCardProps = {
 const cameraStepLabelClass =
   "text-[0.9375rem] font-semibold uppercase leading-tight tracking-wide md:text-[1.5rem]";
 
-/** Step title (e.g. Take your photo) */
-const cameraStepHeadingClass =
+/** Step title (e.g. Take your photo) — shared where flow UIs need matching title scale. */
+export const cameraStepHeadingClass =
   "text-[1.1875rem] font-semibold leading-snug md:text-[2rem]";
 
 /** Description under the title (e.g. Capture your silhouette.) */
-const cameraStepDescriptionClass =
+export const cameraStepDescriptionClass =
   "text-[1.0625rem] leading-snug md:text-[1.4rem]";
 
 export function CameraStepCard({

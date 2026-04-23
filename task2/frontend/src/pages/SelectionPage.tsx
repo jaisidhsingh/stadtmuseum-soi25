@@ -1,7 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  CameraStepCard,
+  cameraStepHeadingClass,
+} from "@/components/CameraStepCard";
+import { FlowStepIndicator } from "@/components/FlowStepIndicator";
 import { Button } from "@/components/ui/button";
+import {
+  continueButtonClassName,
+  flowExitButtonClassName,
+  retakeButtonClassName,
+} from "@/lib/flowCtaClassNames";
 import { t } from "@/lib/localization";
+import { EXHIBIT_STEPS, type ExhibitStepIndex } from "@/lib/exhibitFlow";
+import { cn } from "@/lib/utils";
 import { ArrowLeft, Check, Circle, LogOut, X } from "lucide-react";
 
 type Background = {
@@ -20,6 +32,19 @@ type SilhouetteData = {
   id: string;
   url: string;
 };
+
+/** Same as `SilhouetteLeftColumn` / `CameraPage` step cards. */
+const cameraStepCardClassName = "h-full max-w-full min-h-0 min-w-0 w-full";
+
+const greyedStepClass =
+  "opacity-50 grayscale transition-[filter,opacity] duration-200";
+
+/** Scene names in strip + export queue (a touch under `cameraStepDescriptionClass`). */
+const sceneTitleLabelClassName =
+  "text-[0.9375rem] leading-snug md:text-[1.1875rem]";
+
+/** 0-based index for "Step 3 of 4" (pick backgrounds). */
+const SELECTION_ACTIVE_STEP_INDEX: ExhibitStepIndex = 2;
 
 const SelectionPage = () => {
   const navigate = useNavigate();
@@ -108,334 +133,356 @@ const SelectionPage = () => {
     : false;
 
   return (
-    <div className="h-full min-h-0 exhibit-shell flex flex-col overflow-hidden overflow-x-hidden px-4 py-2 md:px-8 md:py-4">
-      <div className="mb-3 flex items-center justify-between gap-4">
-        <Button
-          variant="outline"
-          size="xl"
-          className="exhibit-panel gap-2 border-film-blue/20 bg-white/70"
-          onClick={() => navigate("/silhouette")}
-        >
-          <ArrowLeft className="h-5 w-5" />
-          {t("Back to Silhouette", "Zurueck zur Silhouette")}
-        </Button>
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          <span className="film-tag">{t("Step 3 of 4", "Schritt 3 von 4")}</span>
-          <Button
-            variant="outline"
-            size="xl"
-            onClick={handleExitSession}
-            className="border-film-red/40 bg-white/80 text-film-red hover:bg-film-red/10 hover:text-film-red"
-          >
-            <LogOut className="h-5 w-5" />
-            {t("Exit Session", "Sitzung beenden")}
-          </Button>
+    <div className="exhibit-shell flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden overflow-x-hidden">
+      <div className="w-full flex-shrink-0 px-4 pt-1 pb-1 sm:pt-2 sm:pb-2 md:px-6 md:pt-2 md:pb-2 lg:pt-3 lg:pb-3">
+        <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,2.25fr)_minmax(0,1.1fr)] items-center gap-2 sm:gap-3 md:gap-4 lg:gap-5">
+          <FlowStepIndicator activeStepIndex={2} className="min-w-0 pl-2 sm:pl-3" />
+          <div className="min-w-0" aria-hidden />
+          <div className="flex min-w-0 items-center justify-end">
+            <Button
+              size="xl"
+              onClick={handleExitSession}
+              className={flowExitButtonClassName}
+            >
+              <LogOut className="shrink-0" />
+              {t("EXIT", "ABBRECHEN")}
+            </Button>
+          </div>
         </div>
       </div>
 
-      <div className="grid flex-1 min-h-0 grid-cols-1 gap-3 xl:grid-cols-[340px_minmax(0,1fr)_360px]">
-        <aside className="exhibit-panel flex min-h-0 flex-col rounded-2xl p-4 md:p-5">
-          <h1 className="exhibit-title text-2xl md:text-3xl">
-            {t("Pick Backgrounds to Share", "Hintergruende zum Teilen waehlen")}
-          </h1>
-          <p className="mt-2 text-sm text-foreground/90 md:text-base">
-            {t(
-              "Choose scenes for your final QR gallery.",
-              "Waehle Szenen fuer deine finale QR-Galerie.",
-            )}
-          </p>
-
-          <div className="mt-4 space-y-2 text-sm md:text-base">
-            <div className="rounded-xl border border-film-blue/20 bg-film-blue/10 px-3 py-2 font-medium text-film-blue">
-              {t(
-                "1. Tap thumbnail to preview.",
-                "1. Miniatur antippen fuer Vorschau.",
+      <div className="min-h-0 w-full min-w-0 flex-1 overflow-hidden px-4 pb-1 pt-0 md:px-6 md:pb-1.5">
+        <div className="grid h-full min-h-0 w-full min-w-0 items-stretch gap-2 sm:gap-3 md:gap-4 max-lg:grid-cols-1 max-lg:grid-rows-[minmax(0,auto)_minmax(0,1fr)_minmax(0,auto)] lg:grid-cols-[minmax(0,1fr)_minmax(0,2.25fr)_minmax(0,1.1fr)] lg:grid-rows-1 lg:gap-5">
+          <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden lg:h-full">
+            <div
+              className={cn(
+                "exhibit-panel flex h-full min-h-0 w-full min-w-0 max-h-full flex-col overflow-hidden rounded-2xl p-2 sm:p-3 md:p-4",
+                "max-lg:max-h-[30vh] lg:max-h-none",
               )}
-            </div>
-            <div className="rounded-xl border border-film-green/20 bg-film-green/10 px-3 py-2 font-medium text-film-green">
-              {t(
-                "2. Select scene for QR export.",
-                "2. Szene fuer QR-Export auswaehlen.",
-              )}
-            </div>
-            <div className="rounded-xl border border-film-red/20 bg-film-red/10 px-3 py-2 font-medium text-film-red">
-              {t(
-                "3. Continue to review and share.",
-                "3. Weiter zu Vorschau und Teilen.",
-              )}
-            </div>
-          </div>
-        </aside>
-
-        <section className="exhibit-panel flex min-h-0 flex-col rounded-2xl p-3 md:p-4">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-semibold md:text-2xl">
-                {t("Live Scene Preview", "Szenen-Vorschau")}
-              </h2>
-              <p className="text-sm text-muted-foreground md:text-base">
-                {t(
-                  "Your moving silhouette stays exactly as designed.",
-                  "Deine bewegte Silhouette bleibt exakt wie gestaltet.",
-                )}
-              </p>
-            </div>
-            <Button
-              size="xl"
-              disabled={!currentPreviewBg}
-              onClick={() =>
-                currentPreviewBg ? toggleSelection(currentPreviewBg.id) : null
-              }
-              className={
-                isCurrentPreviewSelected
-                  ? "bg-film-green text-white hover:bg-film-green/90"
-                  : "cta-step-3 text-white"
-              }
             >
-              {isCurrentPreviewSelected ? (
-                <>
-                  <Check className="h-5 w-5" />
-                  {t("Selected for QR", "Fuer QR ausgewaehlt")}
-                </>
-              ) : (
-                <>
-                  <Circle className="h-5 w-5" />
-                  {t("Select this scene", "Szene auswaehlen")}
-                </>
-              )}
-            </Button>
-          </div>
+              <div className="exhibit-title flex min-h-0 w-full min-w-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] sm:gap-2 md:gap-3">
+                {EXHIBIT_STEPS.map((step, index) => (
+                  <div
+                    key={step.titleEn}
+                    className={cn(
+                      "w-full min-w-0 max-w-full shrink-0",
+                      index !== SELECTION_ACTIVE_STEP_INDEX && greyedStepClass,
+                    )}
+                    aria-current={
+                      index === SELECTION_ACTIVE_STEP_INDEX ? "step" : undefined
+                    }
+                  >
+                    <CameraStepCard
+                      stepIndex={index as ExhibitStepIndex}
+                      className={cameraStepCardClassName}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </aside>
 
-          <div className="flex flex-1 min-h-0 items-center justify-center">
-            {currentPreviewBg && silhouette ? (
-              <div className="relative flex w-full max-w-6xl justify-center">
-                {(() => {
-                  const bw = currentPreviewBg.bg_w || 1920;
-                  const bh = currentPreviewBg.bg_h || 1080;
-                  const maxWidthFromHeightVh = (58 * bw) / bh;
-
-                  return (
-                    <div
-                      className={`relative h-full w-full overflow-hidden rounded-2xl border-4 shadow-2xl transition-all ${isCurrentPreviewSelected ? "border-film-green ring-4 ring-film-green/30" : "border-border"}`}
-                      style={{
-                        width: `min(100%, ${maxWidthFromHeightVh}vh)`,
-                        aspectRatio: `${bw} / ${bh}`,
-                      }}
-                    >
-                      <img
-                        src={`http://localhost:8000${currentPreviewBg.url}`}
-                        alt={currentPreviewBg.title}
-                        className="absolute inset-0 h-full w-full object-contain"
-                      />
-
+          <div className="flex h-full min-h-0 min-w-0 flex-col">
+            <div className="exhibit-panel relative grid h-full min-h-0 w-full min-w-0 [grid-template-rows:minmax(0,1fr)_auto] overflow-hidden rounded-2xl p-0">
+              <div className="relative flex min-h-0 w-full min-w-0 flex-col p-2 sm:p-3 md:p-4">
+                <div className="flex min-h-0 flex-1 items-center justify-center">
+                  {currentPreviewBg && silhouette ? (
+                    <div className="relative flex w-full max-w-6xl justify-center">
                       {(() => {
-                        const pos = currentPreviewBg.positions?.[0] || [
-                          bw / 2,
-                          bh,
-                        ];
-                        const mw = currentPreviewBg.max_w;
-                        const mh = currentPreviewBg.max_h;
-                        const tint = currentPreviewBg.silhouette_color || [
-                          0, 0, 0,
-                        ];
-                        const tintCss = `rgb(${tint[0]}, ${tint[1]}, ${tint[2]})`;
-                        const silhouetteUrl = `http://localhost:8000${silhouette.url}`;
-                        const widthPct = mw ? `${(mw / bw) * 100}%` : "30%";
-                        const heightPct = mh ? `${(mh / bh) * 100}%` : "60%";
+                        const bw = currentPreviewBg.bg_w || 1920;
+                        const bh = currentPreviewBg.bg_h || 1080;
+                        const maxWidthFromHeightVh = (53 * bw) / bh;
 
                         return (
                           <div
-                            aria-label={t("My silhouette", "Meine Silhouette")}
-                            className="absolute pointer-events-none transition-all duration-500"
+                            className={`relative h-full w-full overflow-hidden rounded-2xl border-4 shadow-2xl transition-all ${isCurrentPreviewSelected ? "border-film-green ring-4 ring-film-green/30" : "border-border"}`}
                             style={{
-                              left: `${(pos[0] / bw) * 100}%`,
-                              top: `${(pos[1] / bh) * 100}%`,
-                              transform: "translate(-50%, -100%)",
-                              width: widthPct,
-                              height: heightPct,
-                              backgroundColor: tintCss,
-                              WebkitMaskImage: `url(${silhouetteUrl})`,
-                              maskImage: `url(${silhouetteUrl})`,
-                              WebkitMaskRepeat: "no-repeat",
-                              maskRepeat: "no-repeat",
-                              WebkitMaskPosition: "center bottom",
-                              maskPosition: "center bottom",
-                              WebkitMaskSize: "contain",
-                              maskSize: "contain",
+                              width: `min(100%, ${maxWidthFromHeightVh}vh)`,
+                              aspectRatio: `${bw} / ${bh}`,
                             }}
-                          />
+                          >
+                            <img
+                              src={`http://localhost:8000${currentPreviewBg.url}`}
+                              alt={currentPreviewBg.title}
+                              className="absolute inset-0 h-full w-full object-contain"
+                            />
+
+                            {(() => {
+                              const pos = currentPreviewBg.positions?.[0] || [
+                                bw / 2,
+                                bh,
+                              ];
+                              const mw = currentPreviewBg.max_w;
+                              const mh = currentPreviewBg.max_h;
+                              const tint = currentPreviewBg.silhouette_color || [
+                                0, 0, 0,
+                              ];
+                              const tintCss = `rgb(${tint[0]}, ${tint[1]}, ${tint[2]})`;
+                              const silhouetteUrl = `http://localhost:8000${silhouette.url}`;
+                              const widthPct = mw ? `${(mw / bw) * 100}%` : "30%";
+                              const heightPct = mh ? `${(mh / bh) * 100}%` : "60%";
+
+                              return (
+                                <div
+                                  aria-label={t("My silhouette", "Meine Silhouette")}
+                                  className="absolute pointer-events-none transition-all duration-500"
+                                  style={{
+                                    left: `${(pos[0] / bw) * 100}%`,
+                                    top: `${(pos[1] / bh) * 100}%`,
+                                    transform: "translate(-50%, -100%)",
+                                    width: widthPct,
+                                    height: heightPct,
+                                    backgroundColor: tintCss,
+                                    WebkitMaskImage: `url(${silhouetteUrl})`,
+                                    maskImage: `url(${silhouetteUrl})`,
+                                    WebkitMaskRepeat: "no-repeat",
+                                    maskRepeat: "no-repeat",
+                                    WebkitMaskPosition: "center bottom",
+                                    maskPosition: "center bottom",
+                                    WebkitMaskSize: "contain",
+                                    maskSize: "contain",
+                                  }}
+                                />
+                              );
+                            })()}
+
+                            {/* <div className="absolute left-3 top-3 rounded-full bg-black/55 px-4 py-1.5 text-sm font-semibold text-white md:text-base">
+                              {t("Preview", "Vorschau")}: {currentPreviewBg.title}
+                            </div> */}
+                            {/* <div className="absolute bottom-3 left-3 rounded-full bg-black/55 px-4 py-1.5 text-xs font-medium text-white md:text-sm">
+                              {t(
+                                "Only selected scenes go to QR export.",
+                                "Nur ausgewaehlte Szenen gehen in den QR-Export.",
+                              )}
+                            </div> */}
+                            {currentPreviewBg ? (
+                              <button
+                                type="button"
+                                onClick={() => toggleSelection(currentPreviewBg.id)}
+                                className="absolute right-3 top-3 rounded-full bg-white/85 p-2 text-foreground shadow-lg transition-colors hover:bg-white"
+                                title={
+                                  isCurrentPreviewSelected
+                                    ? t("Unselect scene", "Szene abwaehlen")
+                                    : t("Select scene", "Szene auswaehlen")
+                                }
+                              >
+                                <Check
+                                  className={cn(
+                                    "h-6 w-6",
+                                    isCurrentPreviewSelected
+                                      ? "text-film-green"
+                                      : "text-muted-foreground",
+                                  )}
+                                />
+                              </button>
+                            ) : null}
+                          </div>
                         );
                       })()}
-
-                      <div className="absolute left-3 top-3 rounded-full bg-black/55 px-4 py-1.5 text-sm font-semibold text-white md:text-base">
-                        {t("Preview", "Vorschau")}: {currentPreviewBg.title}
-                      </div>
-                      <div className="absolute bottom-3 left-3 rounded-full bg-black/55 px-4 py-1.5 text-xs font-medium text-white md:text-sm">
-                        {t(
-                          "Only selected scenes go to QR export.",
-                          "Nur ausgewaehlte Szenen gehen in den QR-Export.",
-                        )}
-                      </div>
-                      {currentPreviewBg ? (
-                        <button
-                          type="button"
-                          onClick={() => toggleSelection(currentPreviewBg.id)}
-                          className="absolute right-3 top-3 rounded-full bg-white/85 p-2 text-foreground shadow-lg transition-colors hover:bg-white"
-                          title={
-                            isCurrentPreviewSelected
-                              ? t("Unselect scene", "Szene abwaehlen")
-                              : t("Select scene", "Szene auswaehlen")
-                          }
-                        >
-                          {isCurrentPreviewSelected ? (
-                            <Check className="h-6 w-6 text-film-green" />
-                          ) : (
-                            <Circle className="h-6 w-6 text-muted-foreground" />
-                          )}
-                        </button>
-                      ) : null}
                     </div>
-                  );
-                })()}
-              </div>
-            ) : (
-              <div className="flex aspect-[16/9] w-full max-w-5xl items-center justify-center rounded-2xl bg-muted/60">
-                <span className="text-lg text-muted-foreground">
-                  {t("Loading scene preview...", "Szenen-Vorschau laedt...")}
-                </span>
-              </div>
-            )}
-          </div>
-        </section>
-
-        <aside className="exhibit-panel flex min-h-0 flex-col rounded-2xl p-4 md:p-5">
-          <h2 className="text-xl font-semibold">
-            {t("Export Queue", "Export-Liste")}
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground md:text-base">
-            {t(
-              "Selected scenes become your QR gallery on the next page.",
-              "Ausgewaehlte Szenen erscheinen auf der naechsten QR-Seite.",
-            )}
-          </p>
-
-          <div className="mt-4 rounded-xl border border-film-blue/20 bg-film-blue/10 p-4">
-            <p className="text-3xl font-bold text-film-blue">
-              {selectedCards.length}
-            </p>
-            <p className="text-sm font-semibold uppercase tracking-wide text-film-blue">
-              {t("Selected", "Ausgewaehlt")}
-            </p>
-            <p className="mt-1 text-sm text-foreground/80">
-              {t("of", "von")} {backgrounds.length}{" "}
-              {t("available scenes", "verfuegbaren Szenen")}
-            </p>
-          </div>
-
-          <div className="soft-scroll mt-4 min-h-[120px] max-h-[30vh] space-y-2 overflow-y-auto pr-1">
-            {selectedBackgrounds.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-                {t("No scenes selected yet.", "Noch keine Szenen ausgewaehlt.")}
-              </div>
-            ) : (
-              selectedBackgrounds.map((background) => (
-                <div
-                  key={background.id}
-                  className={`flex items-center justify-between rounded-xl border bg-white/70 px-3 py-2 ${previewBgId === background.id ? "border-film-blue bg-film-blue/10" : ""}`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setPreviewBgId(background.id)}
-                    className="min-w-0 flex-1 pr-2 text-left"
-                  >
-                    <span className="block truncate text-sm font-medium">
-                      {background.title}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      toggleSelection(background.id);
-                    }}
-                    className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                    title={t("Remove from export", "Aus Export entfernen")}
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
+                  ) : (
+                    <div className="flex aspect-[16/9] w-full max-w-5xl items-center justify-center rounded-2xl bg-muted/60">
+                      <span className="text-lg text-muted-foreground">
+                        {t("Loading scene preview...", "Szenen-Vorschau laedt...")}
+                      </span>
+                    </div>
+                  )}
                 </div>
-              ))
-            )}
+              </div>
+
+              <div className="relative z-10 flex w-full min-w-0 flex-col items-stretch justify-center border-t border-border/40 bg-white/95 px-2 py-2 pt-2 sm:px-3 sm:py-2.5 sm:pt-3 md:px-4 md:py-2.5 md:pt-3">
+                <div
+                  className={cn(
+                    "grid w-full min-w-0 items-stretch gap-2 sm:gap-3 md:gap-4",
+                    "grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]",
+                    "[&>button]:max-w-none [&>button]:min-w-0 [&>button]:w-full",
+                  )}
+                >
+                  <Button
+                    size="xl"
+                    onClick={() => navigate("/silhouette")}
+                    className={retakeButtonClassName}
+                  >
+                    <ArrowLeft className="shrink-0" />
+                    {t("Go Back", "Zurueck gehen")}
+                  </Button>
+                  <Button
+                    size="xl"
+                    disabled={!currentPreviewBg}
+                    onClick={() =>
+                      currentPreviewBg ? toggleSelection(currentPreviewBg.id) : null
+                    }
+                    className={continueButtonClassName}
+                  >
+                    {isCurrentPreviewSelected ? (
+                      <>
+                        <Check className="shrink-0" />
+                        {t("Selected for QR", "Fuer QR ausgewaehlt")}
+                      </>
+                    ) : (
+                      <>
+                        <Circle className="shrink-0" />
+                        {t("Select this scene", "Szene auswaehlen")}
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="mt-4 border-t pt-4">
-            <Button
-              size="xl"
-              className="cta-step-4 w-full font-semibold"
-              onClick={handleProceed}
-              disabled={selectedCards.length === 0}
+          <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden lg:h-full">
+            <div
+              className={cn(
+                "exhibit-panel flex h-full min-h-0 w-full min-w-0 max-h-full flex-col overflow-hidden rounded-2xl p-2 sm:p-3 md:p-4",
+                "max-lg:max-h-[30vh] lg:max-h-none",
+              )}
             >
-              {t("Continue to review and QR", "Weiter zu Vorschau und QR")}
-            </Button>
-            {selectedCards.length === 0 ? (
-              <p className="mt-2 text-center text-sm text-muted-foreground">
+              <h2 className="text-xl font-semibold">
+                {t("Export Queue", "Export-Liste")}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground md:text-base">
                 {t(
-                  "Select at least one scene to continue.",
-                  "Waehle mindestens eine Szene, um fortzufahren.",
+                  "Selected scenes become your QR gallery on the next page.",
+                  "Ausgewaehlte Szenen erscheinen auf der naechsten QR-Seite.",
                 )}
               </p>
-            ) : null}
-          </div>
-        </aside>
+
+              <div className="mt-4 shrink-0 rounded-xl border border-film-blue/20 bg-film-blue/10 p-4">
+                <p className="text-3xl font-bold text-film-blue">
+                  {selectedCards.length}
+                </p>
+                <p className="text-sm font-semibold uppercase tracking-wide text-film-blue">
+                  {t("Selected", "Ausgewaehlt")}
+                </p>
+                <p className="mt-1 text-sm text-foreground/80">
+                  {t("of", "von")} {backgrounds.length}{" "}
+                  {t("available scenes", "verfuegbaren Szenen")}
+                </p>
+              </div>
+
+              <div className="soft-scroll mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] pr-1">
+                {selectedBackgrounds.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+                    {t("No scenes selected yet.", "Noch keine Szenen ausgewaehlt.")}
+                  </div>
+                ) : (
+                  selectedBackgrounds.map((background) => (
+                    <div
+                      key={background.id}
+                      className={`flex items-center justify-between rounded-xl border bg-white/70 px-3 py-2 ${previewBgId === background.id ? "border-film-blue bg-film-blue/10" : ""}`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setPreviewBgId(background.id)}
+                        className="min-w-0 flex-1 pr-2 text-left"
+                      >
+                        <span
+                          className={cn(
+                            "block min-w-0 truncate text-film-black",
+                            sceneTitleLabelClassName,
+                          )}
+                        >
+                          {background.title}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          toggleSelection(background.id);
+                        }}
+                        className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                        title={t("Remove from export", "Aus Export entfernen")}
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="mt-4 shrink-0 border-t pt-4">
+                <Button
+                  size="xl"
+                  className="cta-step-4 w-full font-semibold"
+                  onClick={handleProceed}
+                  disabled={selectedCards.length === 0}
+                >
+                  {t("Continue to review and QR", "Weiter zu Vorschau und QR")}
+                </Button>
+                {selectedCards.length === 0 ? (
+                  <p className="mt-2 text-center text-sm text-muted-foreground">
+                    {t(
+                      "Select at least one scene to continue.",
+                      "Waehle mindestens eine Szene, um fortzufahren.",
+                    )}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </aside>
+        </div>
       </div>
 
-      <section className="exhibit-panel mt-3 rounded-2xl p-3 md:p-4">
-        <div className="mb-3 flex items-center gap-3">
-          <h2 className="text-lg font-semibold md:text-xl">
-            {t("Scene Strip", "Szenen-Leiste")}
-          </h2>
-        </div>
-        <div className="custom-scrollbar flex w-full snap-x snap-mandatory items-start gap-4 overflow-x-auto pb-2">
-          {backgrounds.map((background) => {
-            const selected = selectedCards.includes(background.id);
-            const isPreviewing = previewBgId === background.id;
+      <div className="w-full flex-shrink-0 px-4 pb-2 md:px-6 md:pb-3">
+        <section className="exhibit-panel mt-1 rounded-2xl p-3 md:p-4">
+          <div className="mb-3 w-full text-center">
+            <h2
+              className={cn(
+                "exhibit-title min-w-0 text-film-black",
+                cameraStepHeadingClass,
+              )}
+            >
+              {t("Scene Strip", "Szenen-Leiste")}
+            </h2>
+          </div>
+          <div className="custom-scrollbar flex w-full snap-x snap-mandatory items-start justify-center gap-4 overflow-x-auto pb-2">
+            {backgrounds.map((background) => {
+              const selected = selectedCards.includes(background.id);
+              const isPreviewing = previewBgId === background.id;
 
-            return (
-              <button
-                type="button"
-                key={background.id}
-                className="group snap-start text-left"
-                onClick={() => setPreviewBgId(background.id)}
-              >
-                <div
-                  className={`relative h-[124px] w-[220px] overflow-hidden rounded-xl border-4 transition-all duration-200 ${isPreviewing ? "border-film-blue shadow-xl" : "border-transparent opacity-80 group-hover:opacity-100"} ${selected ? "ring-2 ring-film-green/40" : ""}`}
+              return (
+                <button
+                  type="button"
+                  key={background.id}
+                  className="group snap-start text-center"
+                  onClick={() => setPreviewBgId(background.id)}
                 >
-                  <img
-                    src={`http://localhost:8000${background.url}`}
-                    alt={background.title}
-                    className="h-full w-full object-cover"
-                  />
-                  {isPreviewing ? (
-                    <span className="absolute left-2 top-2 rounded-full bg-film-blue px-2 py-0.5 text-xs font-semibold text-white">
-                      {t("Preview", "Vorschau")}
-                    </span>
-                  ) : null}
-                  {selected ? (
-                    <span className="absolute right-2 top-2 rounded-full bg-film-green px-2 py-0.5 text-xs font-semibold text-white">
-                      {t("Selected", "Ausgewaehlt")}
-                    </span>
-                  ) : null}
-                </div>
-                <p
-                  className={`mt-1.5 max-w-[220px] truncate text-sm font-medium ${isPreviewing ? "text-film-blue" : "text-foreground/80"}`}
-                >
-                  {background.title}
-                </p>
-              </button>
-            );
-          })}
-        </div>
-      </section>
+                  <div
+                    className={`relative h-[124px] w-[220px] overflow-hidden rounded-xl border-4 transition-all duration-200 ${isPreviewing ? "border-film-blue shadow-xl" : "border-transparent opacity-80 group-hover:opacity-100"} ${selected ? "ring-2 ring-film-green/40" : ""}`}
+                  >
+                    <img
+                      src={`http://localhost:8000${background.url}`}
+                      alt={background.title}
+                      className="h-full w-full object-cover"
+                    />
+                    {isPreviewing ? (
+                      <span className="absolute left-2 top-2 rounded-full bg-film-blue px-2 py-0.5 text-xs font-semibold text-white">
+                        {t("Preview", "Vorschau")}
+                      </span>
+                    ) : null}
+                    {selected ? (
+                      <span className="absolute right-2 top-2 rounded-full bg-film-green px-2 py-0.5 text-xs font-semibold text-white">
+                        {t("Selected", "Ausgewaehlt")}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p
+                    className={cn(
+                      "exhibit-title mt-1.5 max-w-[220px] min-w-0 truncate text-center",
+                      sceneTitleLabelClassName,
+                      isPreviewing ? "text-film-blue" : "text-foreground/80",
+                    )}
+                  >
+                    {background.title}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      </div>
     </div>
   );
 };
