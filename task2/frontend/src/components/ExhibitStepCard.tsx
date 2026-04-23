@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { t } from "@/lib/localization";
 import { EXHIBIT_STEPS, EXHIBIT_STEP_ACCENTS, type ExhibitStepIndex } from "@/lib/exhibitFlow";
@@ -8,6 +9,8 @@ type ExhibitStepCardProps = {
   stepIndex: ExhibitStepIndex;
   size?: Size;
   className?: string;
+  id?: string;
+  children?: ReactNode;
 };
 
 const defaultTitle =
@@ -30,12 +33,15 @@ export function ExhibitStepCard({
   stepIndex,
   size = "default",
   className,
+  id,
+  children,
 }: ExhibitStepCardProps) {
   const step = EXHIBIT_STEPS[stepIndex];
   const accent = EXHIBIT_STEP_ACCENTS[stepIndex];
 
   return (
     <div
+      id={id}
       className={cn(
         "flex flex-col rounded-xl border border-border text-left text-film-black shadow-[0_10px_34px_hsl(var(--film-black)_/_0.2)]",
         accent,
@@ -66,6 +72,7 @@ export function ExhibitStepCard({
       >
         {t(step.descriptionEn, step.descriptionDe)}
       </p>
+      {children}
     </div>
   );
 }

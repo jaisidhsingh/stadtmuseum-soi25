@@ -1,33 +1,37 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { EXHIBIT_STEP_ACCENTS } from "@/lib/exhibitFlow";
+import { CameraStepCard } from "@/components/CameraStepCard";
+import { type ExhibitStepIndex } from "@/lib/exhibitFlow";
 import { cn } from "@/lib/utils";
 import { t } from "@/lib/localization";
 import { Camera, RefreshCcw, ArrowRight, LogOut } from "lucide-react";
 
 const COUNTDOWN_SECONDS = 10;
 
-const CAMERA_LEFT_INSTRUCTIONS: { en: string; de: string }[] = [
+const CAMERA_STEP1_DESC_INSTRUCTION_CLASS =
+  "text-[1.0625rem] leading-snug md:text-[1.4rem]";
+
+/** Layout on the card root; typography lives in `CameraStepCard` (no drop shadow on camera). */
+const cameraStepCardClassName =
+  "h-full max-w-full min-h-0 min-w-0 w-full";
+
+const CAMERA_STEP1_INSTRUCTION_LINES: { en: string; de: string }[] = [
   {
-    en: "Check if the camera is working",
-    de: "Pruefe, ob die Kamera funktioniert.",
-  },
-  {
-    en: "Make sure you are standing close to the white wall",
+    en: "Make sure you are standing close to the white wall.",
     de: "Stelle dich nah an die weisse Wand.",
   },
   {
-    en: "Ensure that your entire body is inside the camera frame",
+    en: "Ensure that your entire body is inside the camera frame.",
     de: "Achte darauf, dass dein ganzer Koerper im Kamerabild ist.",
   },
   {
-    en: "Click on the CAPTURE button and strike a pose",
+    en: "Click on the CAPTURE button and strike a pose.",
     de: "Tippe auf AUFNEHMEN und nimm eine Pose ein.",
   },
-  { en: "Wait 10 seconds", de: "Warte 10 Sekunden." },
+  { en: "Wait 10 seconds.", de: "Warte 10 Sekunden." },
   {
-    en: "Check if you like your pose",
+    en: "Check if you like your pose.",
     de: "Pruefe, ob dir deine Pose gefaellt.",
   },
   {
@@ -39,10 +43,6 @@ const CAMERA_LEFT_INSTRUCTIONS: { en: string; de: string }[] = [
 /** Match Start page START: green + outlined halo + size */
 const captureButtonClassName =
   "cta-step-2 cta-start-outlined w-full min-h-14 max-w-2xl rounded-2xl py-3 text-xl font-bold uppercase tracking-[0.18em] text-white md:min-h-16 md:py-4 md:text-3xl";
-
-/** Start-page step 1 look: light blue tint + same frame as center `exhibit-panel`; min-h-0/overflow = no page scroll */
-const sidePanelFrameClass =
-  "exhibit-panel-edge flex h-full min-h-0 min-w-0 max-h-full flex-col justify-center overflow-hidden rounded-2xl p-2 sm:p-3 md:p-4 max-lg:max-h-[30vh] lg:max-h-none";
 
 const CameraPage = () => {
   const navigate = useNavigate();
@@ -168,13 +168,13 @@ const CameraPage = () => {
 
   return (
     <div className="exhibit-shell flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden overflow-x-hidden">
-      {/* Same horizontal padding + 3 column template as the main grid below: title in center column, EXIT flush to end of right column = right blue panel. */}
+      {/* Same 3 column template as the main grid: title left (column 1) with the step cards, EXIT in column 3. */}
       <div className="w-full flex-shrink-0 px-4 pt-2 pb-2 sm:pt-3 sm:pb-3 md:px-6 md:pt-4 md:pb-4 lg:pt-5 lg:pb-5">
         <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.85fr)_minmax(0,1.65fr)] items-center gap-2 sm:gap-3 md:gap-4 lg:gap-5">
-          <div className="min-w-0" aria-hidden />
-          <p className="exhibit-title min-w-0 text-center text-2xl font-bold uppercase leading-tight tracking-wider text-film-black md:text-3xl">
-            {t("Step 1 of 4", "Schritt 1 von 4")}
+          <p className="exhibit-title min-w-0 text-left text-2xl font-bold uppercase leading-tight tracking-wider text-film-black md:text-3xl">
+            {t("Step 1 of 4", "Schritt 1 / 4")}
           </p>
+          <div className="min-w-0" aria-hidden />
           <div className="flex min-w-0 items-center justify-end">
             <Button
               variant="outline"
@@ -196,36 +196,42 @@ const CameraPage = () => {
           <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden lg:h-full">
             <div
               className={cn(
-                sidePanelFrameClass,
-                "!justify-start",
-                "min-h-0 pl-0.5", /* tiny extra so list markers (inside) never clip at rounded edge */
-                EXHIBIT_STEP_ACCENTS[0],
+                "exhibit-panel flex h-full min-h-0 w-full min-w-0 max-h-full flex-col overflow-hidden rounded-2xl p-2 sm:p-3 md:p-4",
+                "max-lg:max-h-[30vh] lg:max-h-none",
               )}
             >
-              <div className="flex h-full min-h-0 w-full min-w-0 max-w-full flex-1 flex-col text-left text-film-black">
-                <h2 className="exhibit-title mb-1.5 w-full min-w-0 shrink-0 text-center text-sm font-semibold uppercase leading-snug tracking-wide sm:mb-2 sm:text-lg md:mb-2.5 md:text-2xl">
-                  {t("INSTRUCTIONS", "ANLEITUNG:")}
-                </h2>
-                <ol
-                  className="exhibit-title flex h-full min-h-0 w-full list-none flex-col pl-0 pr-0.5 text-sm font-medium leading-snug sm:pl-0.5 sm:text-lg sm:leading-snug md:pl-1 md:text-2xl"
+              <div className="exhibit-title flex min-h-0 w-full min-w-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] sm:gap-2 md:gap-3">
+                <div
+                  className="w-full min-w-0 max-w-full shrink-0"
+                  aria-current="step"
                 >
-                  {CAMERA_LEFT_INSTRUCTIONS.map((line, i) => (
-                    <li
-                      key={i}
-                      className="flex min-h-0 flex-1 flex-col justify-center gap-0 py-0.5 [overflow-wrap:anywhere]"
+                  <CameraStepCard
+                    stepIndex={0}
+                    className={cameraStepCardClassName}
+                  >
+                    <ol
+                      className={cn(
+                        "exhibit-title mt-2 list-inside list-decimal space-y-1.5 border-t border-border/50 pl-0 pt-2 text-left text-film-black [overflow-wrap:anywhere] marker:font-medium",
+                        CAMERA_STEP1_DESC_INSTRUCTION_CLASS,
+                      )}
                     >
-                      <div className="flex min-w-0 items-baseline gap-1.5 sm:gap-2">
-                        <span className="w-4 shrink-0 text-right font-semibold tabular-nums sm:w-5">
-                          {i + 1}
-                          {"."}
-                        </span>
-                        <span className="min-w-0 flex-1 leading-snug">
-                          {t(line.en, line.de)}
-                        </span>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
+                      {CAMERA_STEP1_INSTRUCTION_LINES.map((line, i) => (
+                        <li key={i}>{t(line.en, line.de)}</li>
+                      ))}
+                    </ol>
+                  </CameraStepCard>
+                </div>
+                {([1, 2, 3] as const).map((stepIndex) => (
+                  <div
+                    key={stepIndex}
+                    className="w-full min-w-0 max-w-full shrink-0 opacity-50 grayscale transition-[filter,opacity] duration-200"
+                  >
+                    <CameraStepCard
+                      stepIndex={stepIndex as ExhibitStepIndex}
+                      className={cameraStepCardClassName}
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           </aside>
@@ -322,9 +328,8 @@ const CameraPage = () => {
           <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden lg:h-full">
             <div
               className={cn(
-                sidePanelFrameClass,
-                "items-center text-center",
-                EXHIBIT_STEP_ACCENTS[0],
+                "exhibit-panel flex h-full min-h-0 w-full min-w-0 max-h-full flex-col items-center justify-center overflow-hidden rounded-2xl p-2 text-center sm:p-3 md:p-4",
+                "max-lg:max-h-[30vh] lg:max-h-none",
               )}
             >
               <p className="exhibit-title text-sm font-semibold text-film-black sm:text-base md:text-lg">

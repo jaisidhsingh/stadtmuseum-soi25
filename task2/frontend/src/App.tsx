@@ -20,7 +20,7 @@ const AppContent = () => {
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <Routes>
             <Route path="/" element={<StartPage />} />
-            <Route path="/camera" element={<TestInputPage />} />
+            <Route path="/camera" element={<CameraPage />} />
             <Route path="/test-input" element={<TestInputPage />} />
             <Route path="/silhouette" element={<SilhouettePage />} />
             <Route path="/selection" element={<SelectionPage />} />
