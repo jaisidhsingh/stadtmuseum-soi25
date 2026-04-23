@@ -43,9 +43,9 @@ FADE_FPS      = 60
 FADE_DURATION = 0.3    # seconds per half-phase (fade-out then fade-in)
 
 
-model = PPHumanSeg(modelPath=MODEL_PATH,
-                    backendId=cv2.dnn.DNN_BACKEND_OPENCV,
-                    targetId=cv2.dnn.DNN_TARGET_CPU)
+#model = PPHumanSeg(modelPath=MODEL_PATH,
+#                    backendId=cv2.dnn.DNN_BACKEND_OPENCV,
+#                    targetId=cv2.dnn.DNN_TARGET_CPU)
 # ---------------------------------------------------------------------------
 # Segmentation
 # ---------------------------------------------------------------------------
@@ -56,13 +56,15 @@ def _segment_rgba(frame_bgr: np.ndarray, session, scale, light_model:bool=False)
     nw = max(1, int(round(w * scale)))
     nh = max(1, int(round(h * scale)))
     small  = cv2.resize(rgb, (nw, nh), interpolation=cv2.INTER_AREA)
+    result = None
     if not light_model:
         result = remove(small, session=session)   # RGBA uint8
     else:
         # infer() returns (1, H, W) binary mask (0 = bg, 1 = fg)
-        mask = model.infer(small)[0]              # (H, W), uint8, values 0/1
-        alpha = (mask * 255).astype(np.uint8)     # 0 or 255
-        result = np.dstack([small, alpha])        # (H, W, 4) RGBA uint8
+        pass
+        #mask = model.infer(small)[0]              # (H, W), uint8, values 0/1
+        #alpha = (mask * 255).astype(np.uint8)     # 0 or 255
+        #result = np.dstack([small, alpha])        # (H, W, 4) RGBA uint8
     return result
 
 
