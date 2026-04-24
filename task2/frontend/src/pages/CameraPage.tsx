@@ -1,7 +1,11 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { CameraStepCard } from "@/components/CameraStepCard";
+import {
+  CameraStepCard,
+  cameraStepDescriptionClass,
+  cameraStepHeadingClass,
+} from "@/components/CameraStepCard";
 import { FlowStepIndicator } from "@/components/FlowStepIndicator";
 import { type ExhibitStepIndex } from "@/lib/exhibitFlow";
 import { cn } from "@/lib/utils";
@@ -13,6 +17,21 @@ import {
   retakeButtonClassName,
 } from "@/lib/flowCtaClassNames";
 import { Camera, RefreshCcw, ArrowRight, LogOut } from "lucide-react";
+import pose1 from "../assets/pose_1.png";
+import pose2 from "../assets/pose_2.png";
+import pose3 from "../assets/pose_3.png";
+import pose4 from "../assets/pose_4.png";
+import pose5 from "../assets/pose_5.png";
+import pose6 from "../assets/pose_6.png";
+
+const POSE_EXAMPLE_IMAGES: readonly string[] = [
+  pose1,
+  pose2,
+  pose3,
+  pose4,
+  pose5,
+  pose6,
+];
 
 const COUNTDOWN_SECONDS = 10;
 
@@ -336,16 +355,50 @@ const CameraPage = () => {
           <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden lg:h-full">
             <div
               className={cn(
-                "exhibit-panel flex h-full min-h-0 w-full min-w-0 max-h-full flex-col items-center justify-center overflow-hidden rounded-2xl p-2 text-center sm:p-3 md:p-4",
+                "exhibit-panel flex h-full min-h-0 w-full min-w-0 max-h-full flex-col overflow-hidden rounded-2xl p-2 sm:p-3 md:p-4",
                 "max-lg:max-h-[30vh] lg:max-h-none",
               )}
             >
-              <p className="exhibit-title text-sm font-semibold text-film-black sm:text-base md:text-lg">
+              <h3
+                className={cn(
+                  "exhibit-title min-w-0 w-full shrink-0 text-center text-film-black",
+                  cameraStepHeadingClass,
+                )}
+              >
                 {t("Examples", "Beispiele")}
+              </h3>
+              <p
+                className={cn(
+                  "mt-1 w-full shrink-0 text-balance text-center text-film-black",
+                  cameraStepDescriptionClass,
+                )}
+              >
+                {t(
+                  "Use one of the following poses as a guide to strike your pose!",
+                  "Nutze eine der folgenden Pose als Anleitung, um deine Pose einzunehmen!",
+                )}
               </p>
-              <p className="mt-1 text-xs text-film-black/80 sm:mt-2 sm:text-sm md:text-base">
-                {t("Coming later.", "Folgen spaeter.")}
-              </p>
+              <div className="mt-2 min-h-0 w-full flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] sm:mt-3">
+                <div className="grid w-full min-w-0 grid-cols-2 gap-1.5 sm:gap-2">
+                  {POSE_EXAMPLE_IMAGES.map((src, i) => (
+                    <div
+                      key={src}
+                      className="relative aspect-[9/16] w-full min-w-0 overflow-hidden rounded-lg border border-border/50 bg-muted"
+                    >
+                      <img
+                        src={src}
+                        alt={t(
+                          `Example pose ${i + 1} of 6`,
+                          `Beispielpose ${i + 1} von 6`,
+                        )}
+                        className="h-full w-full object-contain object-center"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </aside>
         </div>
