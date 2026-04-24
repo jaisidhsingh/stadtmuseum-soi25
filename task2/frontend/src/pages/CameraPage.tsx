@@ -383,7 +383,7 @@ const CameraPage = () => {
                   {POSE_EXAMPLE_IMAGES.map((src, i) => (
                     <div
                       key={src}
-                      className="relative aspect-[9/16] w-full min-w-0 overflow-hidden rounded-lg border border-border/50 bg-muted"
+                      className="relative aspect-[3/5] w-full min-w-0 overflow-hidden rounded-lg border border-border/50 bg-muted"
                     >
                       <img
                         src={src}
@@ -391,7 +391,7 @@ const CameraPage = () => {
                           `Example pose ${i + 1} of 6`,
                           `Beispielpose ${i + 1} von 6`,
                         )}
-                        className="h-full w-full object-contain object-center"
+                        className="h-full w-full object-cover object-center"
                         loading="lazy"
                         decoding="async"
                       />

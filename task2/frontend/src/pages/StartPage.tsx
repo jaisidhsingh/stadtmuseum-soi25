@@ -57,6 +57,9 @@ const StartPage = () => {
     React.useState<LanguageMode>(getLanguageMode());
   const [visibleSteps, setVisibleSteps] = React.useState(0);
 
+  /** True while Privacy or Terms is open, and until the next macrotask after it closes — blocks a spurious consent `onOpenChange(false)` from Radix when a nested dialog unmounts. */
+  const legalSubDialogGuardRef = React.useRef(false);
+
   React.useEffect(() => {
     if (isConsentOpen) {
       return;
@@ -100,6 +103,45 @@ const StartPage = () => {
   };
 
   const canOpenCamera = acceptedProcessing && acceptedPrivacyTerms;
+
+  const handleTermsOpenChange = (open: boolean) => {
+    setShowTermsDoc(open);
+    if (open) {
+      legalSubDialogGuardRef.current = true;
+    } else {
+      window.setTimeout(() => {
+        legalSubDialogGuardRef.current = false;
+      }, 0);
+    }
+  };
+
+  const handlePrivacyOpenChange = (open: boolean) => {
+    setShowPrivacyDoc(open);
+    if (open) {
+      legalSubDialogGuardRef.current = true;
+    } else {
+      window.setTimeout(() => {
+        legalSubDialogGuardRef.current = false;
+      }, 0);
+    }
+  };
+
+  const handleConsentOpenChange = (open: boolean) => {
+    if (open) {
+      setIsConsentOpen(true);
+      return;
+    }
+    if (legalSubDialogGuardRef.current) {
+      return;
+    }
+    setIsConsentOpen(false);
+  };
+
+  const blockConsentDismissWhileLegalOpen = (event: Event) => {
+    if (showTermsDoc || showPrivacyDoc) {
+      event.preventDefault();
+    }
+  };
 
   return (
     <div className="start-page-shell exhibit-shell flex h-full min-h-0 flex-1 flex-col overflow-hidden overflow-x-hidden">
@@ -230,12 +272,14 @@ const StartPage = () => {
       <Dialog
         modal={false}
         open={isConsentOpen}
-        onOpenChange={setIsConsentOpen}
+        onOpenChange={handleConsentOpenChange}
       >
         <DialogContent
           overlayClassName="data-[state=open]:!animate-none data-[state=closed]:!animate-none"
           className="max-w-2xl rounded-2xl border border-film-blue/25 p-6 ring-1 ring-inset ring-background md:p-8 data-[state=open]:!animate-none data-[state=closed]:!animate-none [transform:translateZ(0)]"
           onOpenAutoFocus={(event) => event.preventDefault()}
+          onPointerDownOutside={blockConsentDismissWhileLegalOpen}
+          onInteractOutside={blockConsentDismissWhileLegalOpen}
         >
           <DialogHeader className="text-left">
             <DialogTitle className="exhibit-title text-2xl md:text-3xl">
@@ -303,7 +347,7 @@ const StartPage = () => {
                     "h-auto min-h-0 p-0 font-semibold text-film-blue",
                     exhibitStepDefaultDescriptionClass,
                   )}
-                  onClick={() => setShowPrivacyDoc(true)}
+                  onClick={() => handlePrivacyOpenChange(true)}
                 >
                   {t("Privacy Policy", "Datenschutzerklaerung")}
                 </Button>
@@ -315,7 +359,7 @@ const StartPage = () => {
                     "h-auto min-h-0 p-0 font-semibold text-film-blue",
                     exhibitStepDefaultDescriptionClass,
                   )}
-                  onClick={() => setShowTermsDoc(true)}
+                  onClick={() => handleTermsOpenChange(true)}
                 >
                   {t("Terms and Conditions", "Nutzungsbedingungen")}
                 </Button>
@@ -354,9 +398,12 @@ const StartPage = () => {
 
       <PrivacyPolicyDocumentDialog
         open={showPrivacyDoc}
-        onOpenChange={setShowPrivacyDoc}
+        onOpenChange={handlePrivacyOpenChange}
       />
-      <TermsDocumentDialog open={showTermsDoc} onOpenChange={setShowTermsDoc} />
+      <TermsDocumentDialog
+        open={showTermsDoc}
+        onOpenChange={handleTermsOpenChange}
+      />
     </div>
   );
 };
