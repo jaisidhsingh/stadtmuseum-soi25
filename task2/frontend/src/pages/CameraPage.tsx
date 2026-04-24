@@ -384,7 +384,7 @@ const CameraPage = () => {
                   {POSE_EXAMPLE_IMAGES.map((src, i) => (
                     <div
                       key={src}
-                      className="relative w-full min-w-0 overflow-hidden rounded-lg border border-border/50 bg-muted"
+                      className="relative w-full min-w-0 overflow-hidden rounded-lg border border-border/50 bg-white"
                     >
                       <div className="flex items-center justify-center p-1">
                         <img
