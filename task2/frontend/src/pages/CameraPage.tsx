@@ -368,17 +368,20 @@ const CameraPage = () => {
               >
                 {t("Examples", "Beispiele")}
               </h3>
-              <p
-                className={cn(
-                  "mt-1 w-full shrink-0 text-balance text-center text-film-black",
-                  cameraStepDescriptionClass,
-                )}
-              >
-                {t(
-                  "Use one of the following poses as a guide to strike your pose!",
-                  "Nutze eine der folgenden Pose als Anleitung, um deine Pose einzunehmen!",
-                )}
-              </p>
+              <div className="mt-1 w-full shrink-0 text-balance text-center">
+                <p className={cn("text-film-black", cameraStepDescriptionClass)}>
+                  {t(
+                    "Use one of the following poses as a guide to strike your pose!",
+                    "Nutze eine der folgenden Pose als Anleitung, um deine Pose einzunehmen!",
+                  )}
+                </p>
+                <p className={cn("text-destructive", cameraStepDescriptionClass)}>
+                  {t(
+                    "For best results, make sure your feet are sideways and hands are not touching your body.",
+                    "Fuer die besten Ergebnisse, stelle sicher, dass deine Fuesse seitlich sind und deine Haende nicht auf deinem Koerper liegen.",
+                  )}
+                </p>
+              </div>
               <div className="mt-2 min-h-0 w-full flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] sm:mt-3">
                 <div className="grid w-full min-w-0 grid-cols-3 gap-1.5 sm:gap-2">
                   {POSE_EXAMPLE_IMAGES.map((src, i) => (
