@@ -167,7 +167,7 @@ const StartPage = () => {
         {/* 1) Headline: tune `top` / horizontal padding only — does not move the cards or language. */}
         <div className="pointer-events-none absolute left-0 right-0 top-2 z-20 px-4 sm:top-3 md:px-8">
           <h1
-            className={`exhibit-title hero-title-yellow-glow pointer-events-auto mx-auto max-w-5xl translate-y-10 px-2 text-center text-3xl text-white sm:px-4 md:px-8 md:pr-40 md:text-4xl md:text-5xl lg:pr-44 lg:text-6xl ${languageMode === "en" ? "lg:whitespace-nowrap" : ""}`}
+            className={`exhibit-title hero-title-yellow-glow pointer-events-auto mx-auto max-w-6xl translate-y-10 px-2 text-center text-3xl text-white sm:px-4 md:px-8 md:text-4xl md:text-5xl lg:text-6xl ${languageMode === "en" ? "lg:whitespace-nowrap" : ""}`}
           >
             {t(
               "Immerse yourself in Achmed's world!",
