@@ -7,7 +7,7 @@ export const EXHIBIT_STEPS = [
     titleEn: "Take your photo",
     titleDe: "Foto aufnehmen",
     descriptionEn: "Capture your silhouette.",
-    descriptionDe: "Nimm deine Portrait-Silhouette auf.",
+    descriptionDe: "Nehmen Sie Ihr Foto auf.",
   },
   {
     titleEn: "Style your silhouette",
@@ -25,7 +25,7 @@ export const EXHIBIT_STEPS = [
     titleEn: "Download with QR",
     titleDe: "Mit QR downloaden",
     descriptionEn: "Scan code and save your scenes.",
-    descriptionDe: "Scanne einen Code und speichere deine Galerie.",
+    descriptionDe: "Scanne den Code und speichere deine Galerie.",
   },
 ] as const;
 

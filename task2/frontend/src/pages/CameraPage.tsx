@@ -362,7 +362,7 @@ const CameraPage = () => {
             >
               <h3
                 className={cn(
-                  "exhibit-title min-w-0 w-full shrink-0 text-center text-film-black",
+                  "exhibit-title min-w-0 w-full shrink-0 text-center text-film-black mt-2",
                   cameraStepHeadingClass,
                 )}
               >
