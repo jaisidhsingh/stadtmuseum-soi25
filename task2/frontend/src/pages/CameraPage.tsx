@@ -393,7 +393,7 @@ const CameraPage = () => {
                             `Example pose ${i + 1} of 6`,
                             `Beispielpose ${i + 1} von 6`,
                           )}
-                          className="h-auto w-full max-h-44 object-contain"
+                          className="h-auto w-full max-h-70 object-contain"
                           loading="lazy"
                           decoding="async"
                         />
