@@ -11,14 +11,21 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ChevronRight } from "lucide-react";
-import { ExhibitStepCard } from "@/components/ExhibitStepCard";
+import {
+  ExhibitStepCard,
+  exhibitStepDefaultDescriptionClass,
+} from "@/components/ExhibitStepCard";
 import { EXHIBIT_STEPS, type ExhibitStepIndex } from "@/lib/exhibitFlow";
+import {
+  continueButtonClassName,
+  retakeButtonClassName,
+} from "@/lib/flowCtaClassNames";
+import { cn } from "@/lib/utils";
 import {
   PrivacyPolicyDocumentDialog,
   TermsDocumentDialog,
@@ -232,20 +239,19 @@ const StartPage = () => {
         >
           <DialogHeader className="text-left">
             <DialogTitle className="exhibit-title text-2xl md:text-3xl">
-              {t("Before we open the camera", "Bevor wir die Kamera oeffnen")}
+              {t("Before we start the camera", "Bevor wir die Kamera einschalten")}
             </DialogTitle>
-            <DialogDescription className="text-sm md:text-base">
-              {t(
-                "We use your photo only to create this temporary exhibit artwork.",
-                "Wir verwenden dein Foto nur fuer dieses temporaere Kunstwerk in der Ausstellung.",
-              )}
-            </DialogDescription>
           </DialogHeader>
 
-          <div className="rounded-xl border border-film-red/20 bg-film-red/10 p-4 text-sm text-film-black md:text-base">
+          <div
+            className={cn(
+              "rounded-xl border border-film-red/20 bg-film-red/10 p-4 text-film-black",
+              exhibitStepDefaultDescriptionClass,
+            )}
+          >
             {t(
-              "Your source photo and generated data are deleted automatically after 15 minutes.",
-              "Dein Ausgangsfoto und alle generierten Daten werden automatisch nach 15 Minuten geloescht.",
+              "We use your photo only to create this temporary exhibit artwork. Your source photo and generated data are deleted automatically 15 minutes after the QR code is created.",
+              "Wir verwenden dein Foto nur fuer dieses temporaere Kunstwerk in der Ausstellung.Dein Ausgangsfoto und alle generierten Daten werden automatisch 15 Minuten nach dem QR-Code erstellt geloescht.",
             )}
           </div>
 
@@ -260,7 +266,10 @@ const StartPage = () => {
               />
               <label
                 htmlFor="consent-processing"
-                className="cursor-pointer text-sm leading-snug text-foreground md:text-base"
+                className={cn(
+                  "cursor-pointer text-foreground",
+                  exhibitStepDefaultDescriptionClass,
+                )}
               >
                 {t(
                   "I agree that my image can be processed for this installation.",
@@ -281,14 +290,19 @@ const StartPage = () => {
                   "Ich stimme der Datenschutzerklaerung und den Nutzungsbedingungen zu",
                 )}
               />
-              <div className="min-w-0 text-sm leading-snug text-foreground md:text-base">
+              <div
+                className={cn("min-w-0 text-foreground", exhibitStepDefaultDescriptionClass)}
+              >
                 <span>
                   {t("I agree to the ", "Ich stimme der ")}
                 </span>
                 <Button
                   type="button"
                   variant="link"
-                  className="h-auto min-h-0 p-0 text-sm font-semibold text-film-blue md:text-base"
+                  className={cn(
+                    "h-auto min-h-0 p-0 font-semibold text-film-blue",
+                    exhibitStepDefaultDescriptionClass,
+                  )}
                   onClick={() => setShowPrivacyDoc(true)}
                 >
                   {t("Privacy Policy", "Datenschutzerklaerung")}
@@ -297,7 +311,10 @@ const StartPage = () => {
                 <Button
                   type="button"
                   variant="link"
-                  className="h-auto min-h-0 p-0 text-sm font-semibold text-film-blue md:text-base"
+                  className={cn(
+                    "h-auto min-h-0 p-0 font-semibold text-film-blue",
+                    exhibitStepDefaultDescriptionClass,
+                  )}
                   onClick={() => setShowTermsDoc(true)}
                 >
                   {t("Terms and Conditions", "Nutzungsbedingungen")}
@@ -307,22 +324,29 @@ const StartPage = () => {
             </div>
           </div>
 
-          <DialogFooter className="mt-2 flex-col gap-2 sm:flex-row sm:justify-between sm:gap-3">
+          <DialogFooter className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-stretch sm:gap-4">
             <Button
-              variant="outline"
+              type="button"
               size="xl"
               onClick={() => setIsConsentOpen(false)}
-              className="w-full sm:w-auto"
+              className={cn(
+                retakeButtonClassName,
+                "w-full min-w-0 sm:flex-1",
+              )}
             >
               {t("Cancel", "Abbrechen")}
             </Button>
             <Button
+              type="button"
               size="xl"
               onClick={proceedToCamera}
               disabled={!canOpenCamera}
-              className="cta-step-1 w-full font-semibold text-white sm:w-auto"
+              className={cn(
+                continueButtonClassName,
+                "w-full min-w-0 sm:flex-1",
+              )}
             >
-              {t("Open Camera", "Kamera oeffnen")}
+              {t("Start camera", "Kamera starten")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -17,7 +17,11 @@ const defaultTitle =
   "text-[0.9375rem] font-semibold uppercase leading-tight tracking-wide md:text-[1.0625rem]";
 const defaultHeading =
   "text-[1.1875rem] font-semibold leading-snug md:text-[1.375rem]";
-const defaultDescription = "text-[1.0625rem] leading-snug md:text-[1.1875rem]";
+/** Default size step body on Start (e.g. “Capture your silhouette.”). */
+export const exhibitStepDefaultDescriptionClass =
+  "text-[1.0625rem] leading-snug md:text-[1.1875rem]";
+
+const defaultDescription = exhibitStepDefaultDescriptionClass;
 
 const largeLabel =
   "text-xs font-semibold uppercase leading-tight tracking-wide sm:text-sm md:text-base";

@@ -10,13 +10,6 @@ const FILM_HSL = {
   3: "var(--film-yellow)",
 } as const satisfies Record<ExhibitStepIndex, string>;
 
-const STEP_BORDER: Record<ExhibitStepIndex, string> = {
-  0: "border-film-blue/40",
-  1: "border-film-green/40",
-  2: "border-film-red/40",
-  3: "border-film-yellow/50",
-};
-
 const STEP_I18N: { en: string; de: string }[] = [
   { en: "Step 1 of 4", de: "Schritt 1 / 4" },
   { en: "Step 2 of 4", de: "Schritt 2 / 4" },
@@ -83,7 +76,7 @@ export function FlowStepIndicator({
       </div>
       <span
         className={cn(
-          "exhibit-title min-w-0 shrink text-left text-film-black",
+          "exhibit-title min-w-0 shrink text-left",
           flowCtaLabelTypographyClassName,
         )}
       >

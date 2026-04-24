@@ -8,13 +8,14 @@ import { FlowStepIndicator } from "@/components/FlowStepIndicator";
 import { Button } from "@/components/ui/button";
 import {
   continueButtonClassName,
+  continueToQrButtonClassName,
   flowExitButtonClassName,
   retakeButtonClassName,
 } from "@/lib/flowCtaClassNames";
 import { t } from "@/lib/localization";
 import { EXHIBIT_STEPS, type ExhibitStepIndex } from "@/lib/exhibitFlow";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Check, Circle, LogOut, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Circle, LogOut, X } from "lucide-react";
 
 type Background = {
   id: string;
@@ -45,6 +46,13 @@ const sceneTitleLabelClassName =
 
 /** 0-based index for "Step 3 of 4" (pick backgrounds). */
 const SELECTION_ACTIVE_STEP_INDEX: ExhibitStepIndex = 2;
+
+/** Matches exhibit-shell gutter so footer rules don’t read as a grey cut. */
+const panelGutterRuleClass = "border-t border-[hsl(var(--background))]";
+
+/** Shared padding with the center preview action strip for aligned bottom row. */
+const selectionActionStripPaddingClass =
+  "px-2 py-2 pt-2 sm:px-3 sm:py-2.5 sm:pt-3 md:px-4 md:py-2.5 md:pt-3";
 
 const SelectionPage = () => {
   const navigate = useNavigate();
@@ -136,7 +144,10 @@ const SelectionPage = () => {
     <div className="exhibit-shell flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden overflow-x-hidden">
       <div className="w-full flex-shrink-0 px-4 pt-1 pb-1 sm:pt-2 sm:pb-2 md:px-6 md:pt-2 md:pb-2 lg:pt-3 lg:pb-3">
         <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,2.25fr)_minmax(0,1.1fr)] items-center gap-2 sm:gap-3 md:gap-4 lg:gap-5">
-          <FlowStepIndicator activeStepIndex={2} className="min-w-0 pl-2 sm:pl-3" />
+          <FlowStepIndicator
+            activeStepIndex={2}
+            className="min-w-0 pl-2 sm:pl-3"
+          />
           <div className="min-w-0" aria-hidden />
           <div className="flex min-w-0 items-center justify-end">
             <Button
@@ -290,7 +301,13 @@ const SelectionPage = () => {
                 </div>
               </div>
 
-              <div className="relative z-10 flex w-full min-w-0 flex-col items-stretch justify-center border-t border-border/40 bg-white/95 px-2 py-2 pt-2 sm:px-3 sm:py-2.5 sm:pt-3 md:px-4 md:py-2.5 md:pt-3">
+              <div
+                className={cn(
+                  "relative z-10 flex w-full min-w-0 flex-col items-stretch justify-center bg-white",
+                  panelGutterRuleClass,
+                  selectionActionStripPaddingClass,
+                )}
+              >
                 <div
                   className={cn(
                     "grid w-full min-w-0 items-stretch gap-2 sm:gap-3 md:gap-4",
@@ -334,73 +351,95 @@ const SelectionPage = () => {
           <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden lg:h-full">
             <div
               className={cn(
-                "exhibit-panel flex h-full min-h-0 w-full min-w-0 max-h-full flex-col overflow-hidden rounded-2xl p-2 sm:p-3 md:p-4",
+                "exhibit-panel flex h-full min-h-0 w-full min-w-0 max-h-full flex-col overflow-hidden rounded-2xl p-0",
                 "max-lg:max-h-[30vh] lg:max-h-none",
               )}
             >
-              <h2 className="text-2xl md:text-3xl font-bold flex items-center">
-                {t("Selected Scenes", "Ausgewaehlte Szenen")}
-                <span className="ml-3 rounded-full bg-film-blue/10 px-3 py-0.5 text-lg md:text-xl text-film-blue">
-                  {selectedCards.length}
-                </span>
-              </h2>
-              
-              <div className="soft-scroll mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] pr-1">
-                {selectedBackgrounds.length === 0 ? (
-                  <div className="flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/40 p-6 text-center text-lg md:text-xl font-medium text-muted-foreground">
-                    <p>{t("No scenes selected. Select backgrounds to download.", "Noch keine Szenen ausgewaehlt. Waehle Hintergruende zum Herunterladen.")}</p>
-                  </div>
-                ) : (
-                  selectedBackgrounds.map((background) => (
-                    <div
-                      key={background.id}
-                      className={`flex items-center gap-3 rounded-xl border bg-white/80 p-2 shadow-sm transition-all hover:bg-white ${previewBgId === background.id ? "border-film-blue ring-1 ring-film-blue/20" : ""}`}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => setPreviewBgId(background.id)}
-                        className="flex min-w-0 flex-1 items-center gap-3 text-left"
-                      >
-                        <div className="h-12 w-20 shrink-0 overflow-hidden rounded-md border border-border/50 bg-muted">
-                          <img
-                            src={`http://localhost:8000${background.url}`}
-                            alt={background.title}
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
-                        <span
-                          className={cn(
-                            "block min-w-0 truncate font-medium text-film-black",
-                            sceneTitleLabelClassName,
-                          )}
-                        >
-                          {background.title}
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          toggleSelection(background.id);
-                        }}
-                        className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                        title={t("Remove", "Entfernen")}
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col p-2 sm:p-3 md:p-4">
+                <h2 className="text-xl font-semibold">
+                  {t("Export Queue", "Export-Liste")}
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground md:text-base">
+                  {t(
+                    "Selected scenes become your QR gallery on the next page.",
+                    "Ausgewaehlte Szenen erscheinen auf der naechsten QR-Seite.",
+                  )}
+                </p>
+
+                <div className="mt-4 shrink-0 rounded-xl border border-film-blue/20 bg-film-blue/10 p-4">
+                  <p className="text-3xl font-bold text-film-blue">
+                    {selectedCards.length}
+                  </p>
+                  <p className="text-sm font-semibold uppercase tracking-wide text-film-blue">
+                    {t("Selected", "Ausgewaehlt")}
+                  </p>
+                  <p className="mt-1 text-sm text-foreground/80">
+                    {t("of", "von")} {backgrounds.length}{" "}
+                    {t("available scenes", "verfuegbaren Szenen")}
+                  </p>
+                </div>
+
+                <div className="soft-scroll mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] pr-1">
+                  {selectedBackgrounds.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+                      {t("No scenes selected yet.", "Noch keine Szenen ausgewaehlt.")}
                     </div>
-                  ))
-                )}
+                  ) : (
+                    selectedBackgrounds.map((background) => (
+                      <div
+                        key={background.id}
+                        className={`flex items-center justify-between rounded-xl border bg-white/70 px-3 py-2 ${previewBgId === background.id ? "border-film-blue bg-film-blue/10" : ""}`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setPreviewBgId(background.id)}
+                          className="min-w-0 flex-1 pr-2 text-left"
+                        >
+                          <span
+                            className={cn(
+                              "block min-w-0 truncate text-film-black",
+                              sceneTitleLabelClassName,
+                            )}
+                          >
+                            {background.title}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleSelection(background.id);
+                          }}
+                          className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                          title={t("Remove from export", "Aus Export entfernen")}
+                        >
+                          <X className="h-5 w-5" />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
 
-              <div className="mt-3 shrink-0 border-t pt-3">
+              <div
+                className={cn(
+                  "shrink-0 bg-white",
+                  selectionActionStripPaddingClass,
+                  // Slightly more top padding so the QR CTA sits a touch lower in the card.
+                  "pt-4 sm:pt-5 md:pt-6",
+                )}
+              >
                 <Button
                   size="xl"
-                  className="cta-step-4 w-full shadow-md transition-transform hover:scale-[1.02] active:scale-[0.98] !h-14 md:!h-16 !text-xl md:!text-3xl !font-bold uppercase tracking-wide !text-white"
+                  className={cn(
+                    continueToQrButtonClassName,
+                    "disabled:cursor-not-allowed",
+                  )}
                   onClick={handleProceed}
                   disabled={selectedCards.length === 0}
                 >
-                  {t("Continue to Download", "Weiter zum Download")}
+                  {t("CONTINUE TO QR", "WEITER ZU QR")}
+                  <ArrowRight className="shrink-0" />
                 </Button>
               </div>
             </div>
