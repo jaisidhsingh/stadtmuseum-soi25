@@ -362,7 +362,7 @@ const CameraPage = () => {
             >
               <h3
                 className={cn(
-                  "exhibit-title min-w-0 w-full shrink-0 text-center text-film-black",
+                  "exhibit-title min-w-0 w-full shrink-0 text-center text-film-black mt-4",
                   cameraStepHeadingClass,
                 )}
               >
@@ -382,7 +382,7 @@ const CameraPage = () => {
                   )}
                 </p>
               </div>
-              <div className="mt-2 min-h-0 w-full flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] sm:mt-3">
+              <div className="mt-2 min-h-0 w-full flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] sm:mt-4">
                 <div className="grid w-full min-w-0 grid-cols-3 gap-1.5 sm:gap-2">
                   {POSE_EXAMPLE_IMAGES.map((src, i) => (
                     <div
