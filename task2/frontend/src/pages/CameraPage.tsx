@@ -384,18 +384,20 @@ const CameraPage = () => {
                   {POSE_EXAMPLE_IMAGES.map((src, i) => (
                     <div
                       key={src}
-                      className="relative aspect-[2/5] w-full min-w-0 overflow-hidden rounded-lg border border-border/50 bg-muted"
+                      className="relative w-full min-w-0 overflow-hidden rounded-lg border border-border/50 bg-muted"
                     >
-                      <img
-                        src={src}
-                        alt={t(
-                          `Example pose ${i + 1} of 6`,
-                          `Beispielpose ${i + 1} von 6`,
-                        )}
-                        className="h-full w-full object-contain object-center"
-                        loading="lazy"
-                        decoding="async"
-                      />
+                      <div className="flex items-center justify-center p-1">
+                        <img
+                          src={src}
+                          alt={t(
+                            `Example pose ${i + 1} of 6`,
+                            `Beispielpose ${i + 1} von 6`,
+                          )}
+                          className="h-auto w-full max-h-44 object-contain"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
