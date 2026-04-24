@@ -305,7 +305,7 @@ const SelectionPage = () => {
                 <div
                   className={cn(
                     "grid w-full min-w-0 items-stretch gap-2 sm:gap-3 md:gap-4",
-                    "grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]",
+                    "grid-cols-1 sm:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]",
                     "[&>button]:max-w-none [&>button]:min-w-0 [&>button]:w-full",
                   )}
                 >

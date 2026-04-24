@@ -56,10 +56,7 @@ const CONFIRMATION_STEP4_INSTRUCTION_LINES: { en: string; de: string }[] = [
     en: 'Tap "Create QR Share" to generate a unique code to download your gallery.',
     de: 'Tippe auf „QR-Freigabe erstellen", um einen eindeutigen Code zum Herunterladen deiner Galerie zu erhalten.',
   },
-  {
-    en: "Connect to Wi-Fi if required.",
-    de: "Stelle bei Bedarf eine WLAN-Verbindung her.",
-  },
+
   {
     en: "Scan the QR code with your phone's camera.",
     de: "Scanne den QR-Code mit der Kamera deines Smartphones.",
@@ -326,16 +323,28 @@ const ConfirmationPage = () => {
 
           <div className="flex h-full min-h-0 min-w-0 flex-col">
             <div className="exhibit-panel flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-2xl p-4 md:p-5">
-              <div className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-3">
-                <h2
-                  className={cn(
-                    "exhibit-title min-w-0 text-film-black",
-                    cameraStepHeadingClass,
-                  )}
-                >
-                  {t("Your Gallery", "Deine Galerie")}
-                </h2>
-                <div className="flex flex-wrap items-center gap-2">
+              <div className="mb-4 flex min-w-0 flex-col items-center justify-center gap-2 text-center">
+                <div className="relative flex w-full items-center justify-center">
+                  {!isShareLocked ? (
+                    <Button
+                      size="xl"
+                      onClick={() => navigate("/selection")}
+                      className={cn(flowExitButtonClassName, "!w-auto px-5 absolute left-0")}
+                    >
+                      <ArrowLeft className="shrink-0" />
+                      {t("GO BACK", "ZURUECK GEHEN")}
+                    </Button>
+                  ) : null}
+                  <h2
+                    className={cn(
+                      "exhibit-title min-w-0 text-film-black",
+                      cameraStepHeadingClass,
+                    )}
+                  >
+                    {t("Your Gallery", "Deine Galerie")}
+                  </h2>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-2">
                   <span className="rounded-full bg-film-blue/10 px-3 py-1 text-sm font-semibold text-film-blue">
                     {compositedItems.length} {t("scene(s)", "Szene(n)")}
                   </span>
@@ -346,19 +355,6 @@ const ConfirmationPage = () => {
                   ) : null}
                 </div>
               </div>
-              {!isShareLocked ? (
-                <div className="mb-3">
-                  <Button
-                    variant="outline"
-                    size="xl"
-                    className="exhibit-panel w-full min-w-0 border-film-blue/20 bg-white/70 sm:w-auto"
-                    onClick={() => navigate("/selection")}
-                  >
-                    <ArrowLeft className="h-5 w-5 shrink-0" />
-                    {t("Back to Selection", "Zurueck zur Auswahl")}
-                  </Button>
-                </div>
-              ) : null}
 
               {isProcessing ? (
                 <div className="flex min-h-0 flex-1 items-center justify-center rounded-2xl bg-muted/50 p-6 text-center">
@@ -375,7 +371,11 @@ const ConfirmationPage = () => {
                     )}
                   </p>
                   {!isShareLocked ? (
-                    <Button onClick={() => navigate("/selection")} size="xl">
+                    <Button
+                      onClick={() => navigate("/selection")}
+                      size="xl"
+                      className={flowExitButtonClassName}
+                    >
                       {t("Return to Selection", "Zurueck zur Auswahl")}
                     </Button>
                   ) : null}

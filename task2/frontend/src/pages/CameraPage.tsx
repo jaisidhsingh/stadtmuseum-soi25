@@ -52,8 +52,8 @@ const CAMERA_STEP1_INSTRUCTION_LINES: { en: string; de: string }[] = [
     de: "Achte darauf, dass dein ganzer Koerper im Kamerabild ist.",
   },
   {
-    en: "Click on the CAPTURE button and strike a pose.",
-    de: "Tippe auf AUFNEHMEN und nimm eine Pose ein.",
+    en: "Click on the \"CAPTURE\" button and strike a pose.",
+    de: "Tippe auf \"AUFNEHMEN\" und nimm eine Pose ein.",
   },
   { en: "Wait 10 seconds.", de: "Warte 10 Sekunden." },
   {
