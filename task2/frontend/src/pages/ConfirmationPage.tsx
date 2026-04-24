@@ -450,22 +450,21 @@ const ConfirmationPage = () => {
                     )}
                   </div>
 
-                  <div className="mt-auto space-y-3 pt-4">
+                  <div className="mt-auto space-y-4 pt-6">
                     <Button
                       size="xl"
                       onClick={handleCreateShare}
                       disabled={isCreatingShare || compositedItems.length === 0}
-                      className="cta-step-4 w-full font-semibold"
+                      className="cta-step-4 w-full !text-xl md:!text-3xl !h-16 md:!h-20 font-bold uppercase tracking-wide !text-white shadow-md transition-transform hover:scale-[1.02] active:scale-[0.98]"
                     >
-                      <QrCode className="h-5 w-5" />
+                      <QrCode className="mr-3 h-8 w-8" />
                       {isCreatingShare
                         ? t("Creating QR...", "QR wird erstellt...")
                         : t("Create QR Share", "QR-Freigabe erstellen")}
                     </Button>
                     <Button
-                      variant="outline"
                       size="xl"
-                      className="w-full"
+                      className="w-full !text-xl md:!text-3xl !h-16 md:!h-20 font-bold uppercase tracking-wide !text-white cta-step-3 shadow-md transition-transform hover:scale-[1.02] active:scale-[0.98]"
                       onClick={handleStartOver}
                     >
                       {t(
@@ -476,71 +475,69 @@ const ConfirmationPage = () => {
                   </div>
                 </>
               ) : (
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-                  <div className="mb-3 inline-flex w-fit max-w-full items-center gap-2 rounded-full bg-film-green/10 px-3 py-1 text-sm font-semibold text-film-green">
-                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                <>
+                  <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-film-green/10 px-4 py-1.5 text-lg font-semibold text-film-green">
+                    <CheckCircle2 className="h-5 w-5" />
                     {t("QR ready and locked", "QR bereit und gesperrt")}
                   </div>
-                  <h2 className="text-xl font-semibold md:text-2xl">
+                  <h2 className="text-2xl font-bold md:text-3xl uppercase tracking-wide">
                     {t("Scan and save", "Scannen und speichern")}
                   </h2>
-                  <p className="mt-1 text-sm text-muted-foreground md:text-base">
+                  <p className="mt-1 text-lg text-muted-foreground md:text-xl font-medium">
                     {t(
                       "Use your phone camera to open and save your artwork.",
                       "Nutze deine Smartphone-Kamera, um dein Kunstwerk zu speichern.",
                     )}
                   </p>
 
-                  <div className="mt-4 min-h-0 flex-1 overflow-y-auto">
-                    <div className="rounded-2xl border bg-white/86 p-4 shadow-lg">
-                      <div className="flex items-center justify-center">
-                        <img
-                          src={`https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(shareInfo.shareUrl)}`}
-                          alt={t("Share QR code", "QR-Code teilen")}
-                          className="h-48 w-48 max-w-full sm:h-56 sm:w-56 md:h-64 md:w-64"
-                        />
-                      </div>
-                      <div className="mt-3 space-y-2 text-sm md:text-base">
-                        <p className="flex items-start gap-2">
-                          <ScanLine className="mt-0.5 h-4 w-4 shrink-0 text-film-blue" />
-                          {t(
-                            "1. Open phone camera and scan the QR code.",
-                            "1. Smartphone-Kamera oeffnen und QR-Code scannen.",
-                          )}
-                        </p>
-                        <p className="flex items-start gap-2">
-                          <ScanLine className="mt-0.5 h-4 w-4 shrink-0 text-film-blue" />
-                          {t(
-                            "2. Tap the link to open your gallery.",
-                            "2. Link antippen, um die Galerie zu oeffnen.",
-                          )}
-                        </p>
-                      </div>
+                  <div className="mt-4 rounded-2xl border bg-white/86 p-4 shadow-lg">
+                    <div className="flex items-center justify-center">
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(shareInfo.shareUrl)}`}
+                        alt={t("Share QR code", "QR-Code teilen")}
+                        className="h-64 w-64"
+                      />
+                    </div>
+                    <div className="mt-4 space-y-3 text-lg md:text-xl font-medium">
+                      <p className="flex items-start gap-3">
+                        <ScanLine className="mt-1 h-6 w-6 shrink-0 text-film-blue" />
+                        {t(
+                          "1. Open phone camera and scan the QR code.",
+                          "1. Smartphone-Kamera oeffnen und QR-Code scannen.",
+                        )}
+                      </p>
+                      <p className="flex items-start gap-3">
+                        <ScanLine className="mt-1 h-6 w-6 shrink-0 text-film-blue" />
+                        {t(
+                          "2. Tap the link to open your gallery.",
+                          "2. Link antippen, um die Galerie zu oeffnen.",
+                        )}
+                      </p>
                     </div>
                   </div>
 
-                  <div className="mt-4 rounded-xl border border-film-red/20 bg-film-red/10 p-4 text-sm text-film-black md:text-base">
+                  <div className="mt-4 rounded-xl border border-film-red/20 bg-film-red/10 p-4 text-lg text-film-black md:text-xl font-medium">
                     {t(
-                      `QR expires at ${new Date(shareInfo.expiresAt).toLocaleTimeString()}. All generated data is deleted after 15 minutes.`,
-                      `QR gueltig bis ${new Date(shareInfo.expiresAt).toLocaleTimeString()}. Alle generierten Daten werden nach 15 Minuten geloescht.`,
+                      `QR expires at ${new Date(shareInfo.expiresAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}. All generated data is deleted after 15 minutes.`,
+                      `QR gueltig bis ${new Date(shareInfo.expiresAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}. Alle generierten Daten werden nach 15 Minuten geloescht.`,
                     )}
                   </div>
 
-                  <div className="mt-auto shrink-0 pt-4">
+                  <div className="mt-auto pt-6">
                     <Button
                       size="xl"
                       onClick={handleStartOver}
-                      className="w-full bg-film-red text-white hover:bg-film-red/90"
+                      className="w-full bg-film-red hover:bg-film-red/90 !text-xl md:!text-3xl !h-16 md:!h-20 font-bold uppercase tracking-wide !text-white shadow-md transition-transform hover:scale-[1.02] active:scale-[0.98]"
                     >
                       {t("Close and clear data", "Schliessen und Daten loeschen")}
                     </Button>
                   </div>
-                </div>
+                </>
               )}
             </div>
           </aside>
-        </div >
-      </div >
+        </div>
+      </div>
 
       <Dialog open={!!enlargedImage} onOpenChange={() => setEnlargedImage(null)}>
         <DialogContent className="max-w-2xl border-none bg-transparent px-0 shadow-none">
@@ -553,8 +550,9 @@ const ConfirmationPage = () => {
           ) : null}
         </DialogContent>
       </Dialog>
-    </div >
+    </div>
   );
 };
 
 export default ConfirmationPage;
+

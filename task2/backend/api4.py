@@ -23,7 +23,7 @@ from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Dict, Any
 import logging
-from PIL import Image
+from PIL import Image, ImageOps
 import numpy as np
 import cv2
 import pandas as pd
@@ -51,6 +51,8 @@ from data_manager import SessionManager, BACKGROUNDS, BACKGROUNDS_DIR
 from openpose_engine import OpenPoseEngine
 from body_part_segmentation import BodyPartSegmenter
 from image_utils import crop_to_content, tint_silhouette
+from sftp_uploader import upload_share_to_sftp
+
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -357,6 +359,44 @@ def generate_silhouette_rgba(
     return Image.fromarray(canvas_rgba)
 
 
+def overlay_museum_logo(img: Image.Image) -> Image.Image:
+    """Overlay the Stadtmuseum logo on the bottom right of the image."""
+    logo_path = BACKEND_DIR / "stadtmuseum-logo.png"
+    if not logo_path.exists():
+        return img
+
+    try:
+        logo = Image.open(logo_path).convert("RGBA")
+
+        # Invert colors (Black -> White) while keeping alpha
+        r, g, b, a = logo.split()
+        r = ImageOps.invert(r)
+        g = ImageOps.invert(g)
+        b = ImageOps.invert(b)
+        logo = Image.merge("RGBA", (r, g, b, a))
+
+        # Resize logo to ~15% of image width
+        target_w = int(img.width * 0.15)
+        target_h = int(logo.height * (target_w / logo.width))
+        logo = logo.resize((target_w, target_h), Image.Resampling.LANCZOS)
+
+        # 2% margin
+        margin = int(img.width * 0.02)
+        px = img.width - logo.width - margin
+        py = img.height - logo.height - margin
+
+        # Create a new RGBA image for the composite if the input is not RGBA
+        if img.mode != "RGBA":
+            img = img.convert("RGBA")
+
+        img.paste(logo, (px, py), logo)
+        return img
+    except Exception as e:
+        logger.warning(f"Failed to overlay logo: {e}")
+        return img
+
+
+
 # ---------------------------------------------------------------------------
 # FastAPI app
 # ---------------------------------------------------------------------------
@@ -592,11 +632,7 @@ def _public_base_url() -> str:
     return os.environ.get("PUBLIC_BASE_URL", default_public_url).rstrip("/")
 
 
-def _build_share_url(token: str) -> str:
-    return f"{_public_base_url()}/share/{token}"
-
-
-def _create_share_token(ids: List[str], ttl_minutes: int) -> ShareCreateResponse:
+def _create_share_token_local(ids: List[str], ttl_minutes: int) -> ShareCreateResponse:
     _cleanup_expired_share_tokens()
 
     if not ids:
@@ -643,6 +679,28 @@ def _create_share_token(ids: List[str], ttl_minutes: int) -> ShareCreateResponse
         share_url=_build_share_url(token),
         expires_at=expires_at.isoformat(),
     )
+
+
+def _create_share_token_sftp(ids: List[str], ttl_minutes: int) -> ShareCreateResponse:
+    try:
+        result = upload_share_to_sftp(ids, ttl_minutes)
+        return ShareCreateResponse(
+            token=result["token"],
+            share_url=result["share_url"],
+            expires_at=result["expires_at"],
+        )
+    except Exception as e:
+        logger.exception("Failed to create share token via SFTP")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def _create_share_token(ids: List[str], ttl_minutes: int) -> ShareCreateResponse:
+    mode = os.environ.get("SHARE_MODE", "sftp").lower()
+    if mode == "local":
+        return _create_share_token_local(ids, ttl_minutes)
+    else:
+        return _create_share_token_sftp(ids, ttl_minutes)
+
 
 
 def _get_share_entry(token: str) -> Dict[str, Any]:
@@ -1017,8 +1075,12 @@ async def compose_image(request: CompositeRequest):
         sil_layer.paste(silhouette, (paste_x, paste_y))
         final_comp = Image.alpha_composite(background, sil_layer)
 
+        # Add Museum Logo
+        final_comp = overlay_museum_logo(final_comp)
+
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
             final_comp.save(tmp, format="PNG")
+
             tmp_path = Path(tmp.name)
 
         comp_id, saved_path = SessionManager.save_composition(tmp_path)
@@ -1113,7 +1175,6 @@ async def open_share_page(token: str):
     <img src="/share/{token}/image/{i}" alt="Shared image {i + 1}" class="share-image" />
     <div class="item-actions">
         <a class="btn btn-download" href="/share/{token}/download/{i}">Download</a>
-        <button class="btn btn-share" onclick="shareImage('/share/{token}/image/{i}', {i + 1})">Share</button>
     </div>
 </div>
 '''
@@ -1200,13 +1261,19 @@ async def open_share_page(token: str):
             background: #0f766e;
             color: #fff;
         }
-        .btn-share {
-            background: #111827;
-            color: #fff;
+        .logo-container {
+            text-align: center;
+            margin-top: 3rem;
+            padding-bottom: 2rem;
         }
-        .btn-share-selected {
-            background: #7c3aed;
-            color: #fff;
+        .logo-container svg {
+            height: 40px;
+            width: auto;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+        .logo-container a:hover svg {
+            opacity: 1;
         }
         .hint {
             color: #5a5a58;
@@ -1223,9 +1290,14 @@ async def open_share_page(token: str):
     <button class="btn" onclick="setAllSelected(false)">Clear Selection</button>
     <a class="btn btn-download-all" href="/share/__TOKEN__/download-all">Download All (ZIP)</a>
     <button class="btn btn-download-selected" onclick="downloadSelected()">Download Selected</button>
-    <button class="btn btn-share-selected" onclick="shareSelected()">Share Selected</button>
   </div>
   __ITEMS_HTML__
+  
+  <div class="logo-container">
+    <a href="https://tuebingen.ai" target="_blank" rel="noopener noreferrer">
+      __LOGO_SVG__
+    </a>
+  </div>
     <script>
         function selectedIndexes() {
             return Array.from(document.querySelectorAll('.pick-checkbox:checked'))
@@ -1344,11 +1416,19 @@ async def open_share_page(token: str):
 </body>
 </html>
 """
+    # Load Tuebingen AI SVG logo
+    svg_path = Path(__file__).parent.parent / "frontend" / "src" / "assets" / "logo-tueai.svg"
+    svg_content = ""
+    if svg_path.exists():
+        with open(svg_path, "r", encoding="utf-8") as svg_file:
+            svg_content = svg_file.read()
+
     html = (
         html_template
         .replace("__EXPIRES__", expires)
         .replace("__ITEMS_HTML__", items_html)
         .replace("__TOKEN__", token)
+        .replace("__LOGO_SVG__", svg_content)
     )
     return HTMLResponse(content=html)
 
@@ -1367,4 +1447,18 @@ async def clear_data():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("api3:app", host="0.0.0.0", port=8000, reload=True)
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--host", default="0.0.0.0")
+    parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--share-mode", choices=["sftp", "local"], default="sftp",
+                        help="Choose sharing route: 'sftp' (premium server) or 'local' (Cloudflare tunnel)")
+    args = parser.parse_args()
+
+    # Pass mode via environment so uvicorn workers/reloaders pick it up
+    os.environ["SHARE_MODE"] = args.share_mode
+
+    # Use the current filename (api4) for uvicorn
+    uvicorn.run("api4:app", host=args.host, port=args.port, reload=True)
+
