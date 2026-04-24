@@ -395,7 +395,7 @@ const CameraPage = () => {
                           `Example pose ${i + 1} of 6`,
                           `Beispielpose ${i + 1} von 6`,
                         )}
-                        className="h-full w-full object-cover object-center"
+                        className="h-full w-full object-contain object-center"
                         loading="lazy"
                         decoding="async"
                       />
