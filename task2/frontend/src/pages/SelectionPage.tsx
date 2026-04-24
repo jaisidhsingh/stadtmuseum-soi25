@@ -301,7 +301,7 @@ const SelectionPage = () => {
                   <Button
                     size="xl"
                     onClick={() => navigate("/silhouette")}
-                    className={retakeButtonClassName}
+                    className={cn(retakeButtonClassName, "!text-white")}
                   >
                     <ArrowLeft className="shrink-0" />
                     {t("Go Back", "Zurueck gehen")}
@@ -312,17 +312,17 @@ const SelectionPage = () => {
                     onClick={() =>
                       currentPreviewBg ? toggleSelection(currentPreviewBg.id) : null
                     }
-                    className={continueButtonClassName}
+                    className={cn(continueButtonClassName, "!text-white")}
                   >
                     {isCurrentPreviewSelected ? (
                       <>
                         <Check className="shrink-0" />
-                        {t("Selected for QR", "Fuer QR ausgewaehlt")}
+                        {t("Selected for Download", "Fuer Download ausgewaehlt")}
                       </>
                     ) : (
                       <>
                         <Circle className="shrink-0" />
-                        {t("Select this scene", "Szene auswaehlen")}
+                        {t("Select for Download", "Zum Download auswaehlen")}
                       </>
                     )}
                   </Button>
@@ -338,48 +338,39 @@ const SelectionPage = () => {
                 "max-lg:max-h-[30vh] lg:max-h-none",
               )}
             >
-              <h2 className="text-xl font-semibold">
-                {t("Export Queue", "Export-Liste")}
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground md:text-base">
-                {t(
-                  "Selected scenes become your QR gallery on the next page.",
-                  "Ausgewaehlte Szenen erscheinen auf der naechsten QR-Seite.",
-                )}
-              </p>
-
-              <div className="mt-4 shrink-0 rounded-xl border border-film-blue/20 bg-film-blue/10 p-4">
-                <p className="text-3xl font-bold text-film-blue">
+              <h2 className="text-2xl md:text-3xl font-bold flex items-center">
+                {t("Selected Scenes", "Ausgewaehlte Szenen")}
+                <span className="ml-3 rounded-full bg-film-blue/10 px-3 py-0.5 text-lg md:text-xl text-film-blue">
                   {selectedCards.length}
-                </p>
-                <p className="text-sm font-semibold uppercase tracking-wide text-film-blue">
-                  {t("Selected", "Ausgewaehlt")}
-                </p>
-                <p className="mt-1 text-sm text-foreground/80">
-                  {t("of", "von")} {backgrounds.length}{" "}
-                  {t("available scenes", "verfuegbaren Szenen")}
-                </p>
-              </div>
-
-              <div className="soft-scroll mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] pr-1">
+                </span>
+              </h2>
+              
+              <div className="soft-scroll mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] pr-1">
                 {selectedBackgrounds.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-                    {t("No scenes selected yet.", "Noch keine Szenen ausgewaehlt.")}
+                  <div className="flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/40 p-6 text-center text-lg md:text-xl font-medium text-muted-foreground">
+                    <p>{t("No scenes selected. Select backgrounds to download.", "Noch keine Szenen ausgewaehlt. Waehle Hintergruende zum Herunterladen.")}</p>
                   </div>
                 ) : (
                   selectedBackgrounds.map((background) => (
                     <div
                       key={background.id}
-                      className={`flex items-center justify-between rounded-xl border bg-white/70 px-3 py-2 ${previewBgId === background.id ? "border-film-blue bg-film-blue/10" : ""}`}
+                      className={`flex items-center gap-3 rounded-xl border bg-white/80 p-2 shadow-sm transition-all hover:bg-white ${previewBgId === background.id ? "border-film-blue ring-1 ring-film-blue/20" : ""}`}
                     >
                       <button
                         type="button"
                         onClick={() => setPreviewBgId(background.id)}
-                        className="min-w-0 flex-1 pr-2 text-left"
+                        className="flex min-w-0 flex-1 items-center gap-3 text-left"
                       >
+                        <div className="h-12 w-20 shrink-0 overflow-hidden rounded-md border border-border/50 bg-muted">
+                          <img
+                            src={`http://localhost:8000${background.url}`}
+                            alt={background.title}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
                         <span
                           className={cn(
-                            "block min-w-0 truncate text-film-black",
+                            "block min-w-0 truncate font-medium text-film-black",
                             sceneTitleLabelClassName,
                           )}
                         >
@@ -392,33 +383,25 @@ const SelectionPage = () => {
                           event.stopPropagation();
                           toggleSelection(background.id);
                         }}
-                        className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                        title={t("Remove from export", "Aus Export entfernen")}
+                        className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                        title={t("Remove", "Entfernen")}
                       >
-                        <X className="h-5 w-5" />
+                        <X className="h-4 w-4" />
                       </button>
                     </div>
                   ))
                 )}
               </div>
 
-              <div className="mt-4 shrink-0 border-t pt-4">
+              <div className="mt-3 shrink-0 border-t pt-3">
                 <Button
                   size="xl"
-                  className="cta-step-4 w-full font-semibold"
+                  className="cta-step-4 w-full shadow-md transition-transform hover:scale-[1.02] active:scale-[0.98] !h-14 md:!h-16 !text-xl md:!text-3xl !font-bold uppercase tracking-wide !text-white"
                   onClick={handleProceed}
                   disabled={selectedCards.length === 0}
                 >
-                  {t("Continue to review and QR", "Weiter zu Vorschau und QR")}
+                  {t("Continue to Download", "Weiter zum Download")}
                 </Button>
-                {selectedCards.length === 0 ? (
-                  <p className="mt-2 text-center text-sm text-muted-foreground">
-                    {t(
-                      "Select at least one scene to continue.",
-                      "Waehle mindestens eine Szene, um fortzufahren.",
-                    )}
-                  </p>
-                ) : null}
               </div>
             </div>
           </aside>

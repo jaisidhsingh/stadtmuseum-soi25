@@ -8,7 +8,7 @@ const isLanguageMode = (value: string): value is LanguageMode =>
 
 const getInitialLanguageMode = (): LanguageMode => {
   if (typeof window === "undefined") {
-    return "en";
+    return "de";
   }
 
   const storedMode = window.localStorage.getItem(LANGUAGE_MODE_STORAGE_KEY);
@@ -16,7 +16,7 @@ const getInitialLanguageMode = (): LanguageMode => {
     return storedMode;
   }
 
-  return "en";
+  return "de";
 };
 
 export const languageSettings: {

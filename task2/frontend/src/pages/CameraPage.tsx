@@ -321,9 +321,9 @@ const CameraPage = () => {
                         <Camera className="shrink-0" />
                         {countdownSeconds !== null
                           ? t(
-                              `Capturing in ${countdownSeconds}...`,
-                              `Aufnahme in ${countdownSeconds}...`,
-                            )
+                            `Capturing in ${countdownSeconds}...`,
+                            `Aufnahme in ${countdownSeconds}...`,
+                          )
                           : t("Capture", "Aufnehmen")}
                       </Button>
                     )}

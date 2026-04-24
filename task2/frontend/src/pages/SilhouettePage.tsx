@@ -90,11 +90,21 @@ const SilhouettePage = () => {
 
   const [characters, setCharacters] = useState<string[]>([]);
 
-  const [selections, setSelections] = useState<CharacterSelections>({
-    hat: null,
-    arms: null,
-    legs: null,
-    feet: null,
+  const [selections, setSelections] = useState<CharacterSelections>(() => {
+    const saved = sessionStorage.getItem("silhouetteStyles");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to parse saved styles", e);
+      }
+    }
+    return {
+      hat: null,
+      arms: null,
+      legs: null,
+      feet: null,
+    };
   });
 
   const isProcessing = isLoadingOriginal || isLoadingWarped;
@@ -230,10 +240,21 @@ const SilhouettePage = () => {
     group: keyof CharacterSelections,
     charName: string,
   ) => {
+    if (isProcessing) return;
     setSelections((prev) => ({
       ...prev,
       [group]: prev[group] === charName ? null : charName,
     }));
+  };
+
+  const handleSurpriseMe = () => {
+    if (isProcessing || characters.length === 0) return;
+    setSelections({
+      hat: characters[Math.floor(Math.random() * characters.length)],
+      arms: characters[Math.floor(Math.random() * characters.length)],
+      legs: characters[Math.floor(Math.random() * characters.length)],
+      feet: characters[Math.floor(Math.random() * characters.length)],
+    });
   };
 
   const handleNext = () => {
@@ -356,13 +377,23 @@ const SilhouettePage = () => {
               )}
             >
               <div className="flex h-full min-h-0 w-full min-w-0 flex-col text-film-black">
-                <div className="shrink-0 px-0.5 pb-3 sm:px-1 sm:pb-4" role="status">
-                  <div className={cn(filmBlueCtaClassName, "shrink-0")}>
+                <div className="shrink-0 px-0.5 pb-6 sm:px-1 sm:pb-8" role="status">
+                  <button
+                    type="button"
+                    onClick={handleSurpriseMe}
+                    disabled={isProcessing || characters.length === 0}
+                    className={cn(
+                      filmBlueCtaClassName,
+                      "shrink-0 w-full transition-opacity hover:opacity-90 active:scale-95",
+                      "!cursor-pointer !pointer-events-auto",
+                      (isProcessing || characters.length === 0) && "opacity-50 !cursor-not-allowed !pointer-events-none"
+                    )}
+                  >
                     {t("SURPRISE ME!", "UEBERRASCH MICH!")}
-                  </div>
+                  </button>
                 </div>
                 <ScrollArea className="min-h-0 w-full flex-1 pr-1">
-                  <div className="space-y-5 pb-1 sm:space-y-6 md:space-y-7">
+                  <div className="space-y-8 sm:space-y-10 md:space-y-12 pb-1">
                     {PART_GROUPS.map((group) => (
                       <div key={group.id} className="min-w-0 space-y-2">
                         <h3 className="exhibit-title text-center text-[1.1875rem] font-semibold leading-snug tracking-wide md:text-[2rem]">
@@ -372,14 +403,16 @@ const SilhouettePage = () => {
                           <div className="flex w-max min-w-0 max-w-full space-x-3 p-0.5 sm:space-x-4">
                             <div
                               role="button"
-                              tabIndex={0}
-                              onClick={() =>
+                              tabIndex={isProcessing ? -1 : 0}
+                              onClick={() => {
+                                if (isProcessing) return;
                                 setSelections((prev) => ({
                                   ...prev,
                                   [group.id]: null,
-                                }))
-                              }
+                                }));
+                              }}
                               onKeyDown={(e) => {
+                                if (isProcessing) return;
                                 if (e.key === "Enter" || e.key === " ") {
                                   e.preventDefault();
                                   setSelections((prev) => ({
@@ -391,6 +424,7 @@ const SilhouettePage = () => {
                               className={`
                                 relative flex h-24 w-24 flex-shrink-0 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border-2 transition-all duration-200
                                 hover:scale-105 active:scale-95 sm:h-28 sm:w-28
+                                ${isProcessing ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}
                                 ${selections[group.id] === null ? "border-primary bg-primary/5 ring-2 ring-primary/30" : "border-transparent bg-muted/50 hover:border-primary/50"}
                               `}
                             >
@@ -431,11 +465,13 @@ const SilhouettePage = () => {
                                 <div
                                   key={char}
                                   role="button"
-                                  tabIndex={0}
-                                  onClick={() =>
-                                    toggleSelection(group.id, char)
-                                  }
+                                  tabIndex={isProcessing ? -1 : 0}
+                                  onClick={() => {
+                                    if (isProcessing) return;
+                                    toggleSelection(group.id, char);
+                                  }}
                                   onKeyDown={(e) => {
+                                    if (isProcessing) return;
                                     if (e.key === "Enter" || e.key === " ") {
                                       e.preventDefault();
                                       toggleSelection(group.id, char);
@@ -444,6 +480,7 @@ const SilhouettePage = () => {
                                   className={`
                                     relative h-24 w-24 flex-shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 bg-muted/30 transition-all duration-200
                                     hover:scale-105 active:scale-95 sm:h-28 sm:w-28
+                                    ${isProcessing ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}
                                     ${isSelected ? "border-primary ring-2 ring-primary/30" : "border-transparent hover:border-primary/50"}
                                   `}
                                 >
