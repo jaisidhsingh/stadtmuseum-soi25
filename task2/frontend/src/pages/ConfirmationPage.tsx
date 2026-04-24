@@ -335,24 +335,24 @@ const ConfirmationPage = () => {
                       {t("GO BACK", "ZURUECK GEHEN")}
                     </Button>
                   ) : null}
-                  <h2
+                  {/* <h2
                     className={cn(
                       "exhibit-title min-w-0 text-film-black",
                       cameraStepHeadingClass,
                     )}
                   >
                     {t("Your Gallery", "Deine Galerie")}
-                  </h2>
+                  </h2> */}
                 </div>
                 <div className="flex flex-wrap items-center justify-center gap-2">
-                  <span className="rounded-full bg-film-blue/10 px-3 py-1 text-sm font-semibold text-film-blue">
+                  {/* <span className="rounded-full bg-film-blue/10 px-3 py-1 text-sm font-semibold text-film-blue">
                     {compositedItems.length} {t("scene(s)", "Szene(n)")}
                   </span>
                   {isShareLocked ? (
                     <span className="film-tag">
                       {t("Share Locked", "Freigabe gesperrt")}
-                    </span>
-                  ) : null}
+                    </span> */}
+                  {/* ) : null} */}
                 </div>
               </div>
 
