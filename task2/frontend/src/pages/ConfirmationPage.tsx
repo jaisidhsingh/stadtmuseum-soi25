@@ -323,7 +323,7 @@ const ConfirmationPage = () => {
 
           <div className="flex h-full min-h-0 min-w-0 flex-col">
             <div className="exhibit-panel flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-2xl p-4 md:p-5">
-              <div className="mb-4 flex min-w-0 flex-col items-center justify-center gap-2 text-center">
+              <div className="mb-4 flex min-w-0 flex-col items-center justify-center gap-2 text-center px-3 sm:px-4 md:px-5">
                 <div className="relative flex w-full items-center justify-center">
                   {!isShareLocked ? (
                     <Button
@@ -381,7 +381,7 @@ const ConfirmationPage = () => {
                   ) : null}
                 </div>
               ) : (
-                <div className="soft-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] pr-1">
+                <div className="soft-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] pr-1 px-3 sm:px-4 md:px-5">
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-3">
                     {compositedItems.map((item) => (
                       <Card
