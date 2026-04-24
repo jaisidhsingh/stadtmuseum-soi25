@@ -165,9 +165,9 @@ const StartPage = () => {
       {/* Title + language are absolute. Grey cards stay in flex flow (bottom) so h-full / grid stretch match the pre-refactor layout. */}
       <section className="relative z-0 flex min-h-0 flex-1 flex-col justify-end px-4 md:-mt-3 md:px-8">
         {/* 1) Headline: tune `top` / horizontal padding only — does not move the cards or language. */}
-        <div className="pointer-events-none absolute left-0 right-0 top-2 z-20 px-4 sm:top-3 md:px-8">
+        <div className="pointer-events-none absolute left-0 right-0 top-2 z-20 px-4 sm:top-3 md:px-8 min-h-[8rem] md:min-h-[9rem] lg:min-h-[10rem]">
           <h1
-            className="exhibit-title hero-title-yellow-glow pointer-events-auto mx-auto max-w-5xl translate-y-10 px-2 text-center text-3xl text-white sm:px-4 md:px-8 md:text-4xl md:text-5xl lg:text-6xl whitespace-normal min-h-[3.75rem] md:min-h-[5.5rem] lg:min-h-[6.5rem]"
+            className="exhibit-title hero-title-yellow-glow pointer-events-auto mx-auto max-w-5xl whitespace-normal leading-tight translate-y-10 px-2 text-center text-3xl text-white sm:px-4 md:px-8 md:text-4xl md:text-5xl lg:text-6xl min-h-[4.5rem] md:min-h-[6.5rem] lg:min-h-[7.5rem]"
           >
             {t(
               "Immerse yourself in Achmed's world!",
