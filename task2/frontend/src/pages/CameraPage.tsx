@@ -64,6 +64,10 @@ const CAMERA_STEP1_INSTRUCTION_LINES: { en: string; de: string }[] = [
     en: "Move on to the next step or retake your image.",
     de: "Weiter zum naechsten Schritt oder erneut aufnehmen.",
   },
+  {
+    en: "If you are satisfied with your silhouette, click on the \"BACKGROUNDS\" button.",
+    de: "Wenn du mit deiner Silhouette zufrieden bist, tippe auf \"HINTERGRUNDE\".",
+  }
 ];
 
 const CameraPage = () => {
@@ -379,11 +383,11 @@ const CameraPage = () => {
                 )}
               </p>
               <div className="mt-2 min-h-0 w-full flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] sm:mt-3">
-                <div className="grid w-full min-w-0 grid-cols-2 gap-1.5 sm:gap-2">
+                <div className="grid w-full min-w-0 grid-cols-3 gap-1.5 sm:gap-2">
                   {POSE_EXAMPLE_IMAGES.map((src, i) => (
                     <div
                       key={src}
-                      className="relative aspect-[3/5] w-full min-w-0 overflow-hidden rounded-lg border border-border/50 bg-muted"
+                      className="relative aspect-[2/5] w-full min-w-0 overflow-hidden rounded-lg border border-border/50 bg-muted"
                     >
                       <img
                         src={src}
