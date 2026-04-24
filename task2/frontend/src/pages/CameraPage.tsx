@@ -64,10 +64,7 @@ const CAMERA_STEP1_INSTRUCTION_LINES: { en: string; de: string }[] = [
     en: "Move on to the next step or retake your image.",
     de: "Weiter zum naechsten Schritt oder erneut aufnehmen.",
   },
-  {
-    en: "If you are satisfied with your silhouette, click on the \"BACKGROUNDS\" button.",
-    de: "Wenn du mit deiner Silhouette zufrieden bist, tippe auf \"HINTERGRUNDE\".",
-  }
+
 ];
 
 const CameraPage = () => {
