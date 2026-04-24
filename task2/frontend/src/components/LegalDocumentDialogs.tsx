@@ -98,10 +98,10 @@ export function TermsDocumentDialog({ open, onOpenChange }: LegalDialogProps) {
             )}
           </p>
           <p>
-            {t(
+            {/* {t(
               "The museum may use anonymized, aggregated data to improve the exhibit experience.",
               "Das Museum darf anonymisierte, aggregierte Daten zur Verbesserung des Ausstellungserlebnisses verwenden.",
-            )}
+            )} */}
           </p>
         </div>
       </DialogContent>
