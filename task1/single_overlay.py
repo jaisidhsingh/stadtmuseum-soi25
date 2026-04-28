@@ -221,6 +221,7 @@ def main():
     bh0, bw0 = entries[0]["bg"].shape[:2]
     cv2.namedWindow(WIN_NAME, cv2.WINDOW_NORMAL)
     cv2.resizeWindow(WIN_NAME, bw0, bh0)
+    cv2.setWindowProperty(WIN_NAME, cv2.WIND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
     idx         = 0
     last_switch = time.time()
