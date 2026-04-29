@@ -81,7 +81,7 @@ const CameraPage = () => {
   const startCamera = React.useCallback(async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: 1080, height: 1920 },
+        video: { facingMode: "user", width: 500, height: 1920 },
       });
       setStream(mediaStream);
       if (videoRef.current) {
@@ -119,11 +119,24 @@ const CameraPage = () => {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
       const ctx = canvas.getContext("2d");
       if (ctx) {
-        ctx.drawImage(video, 0, 0);
+        const targetWidth = 500;
+        const targetHeight = 1460;
+
+        // Offsets
+        const sx = 0;
+        const sy = 460;
+
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+
+        ctx.drawImage(
+            video,
+            sx, sy, targetWidth, targetHeight,  // Source
+            0, 0, targetWidth, targetHeight  // Destination
+        );
+
         const imageData = canvas.toDataURL("image/png");
         setCapturedImage(imageData);
         stopCamera();
@@ -284,13 +297,20 @@ const CameraPage = () => {
                     />
                   </div>
                 ) : (
-                  <div className="relative flex h-full w-full min-h-0 max-w-3xl items-center justify-center self-center">
+                  <div
+                    className="relative overflow-hidden"
+                    style={{
+                        aspectRatio: "500 / 1460",
+                        height: "100%",
+                        maxHeight: "100%",
+                    }}
+                  >
                     <video
                       ref={videoRef}
                       autoPlay
                       playsInline
                       muted
-                      className="max-h-full max-w-full object-contain bg-muted"
+                      className="h-full w-full object-cover object-bottom"
                     />
                     {countdownSeconds !== null ? (
                       <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/30">
@@ -362,11 +382,7 @@ const CameraPage = () => {
             >
               <h3
                 className={cn(
-<<<<<<< HEAD
-                  "exhibit-title min-w-0 w-full shrink-0 text-center text-film-black mt-4",
-=======
                   "exhibit-title min-w-0 w-full shrink-0 text-center text-film-black mt-2",
->>>>>>> bf398a0ca7774514d90a830c6deab4d90faf616c
                   cameraStepHeadingClass,
                 )}
               >
