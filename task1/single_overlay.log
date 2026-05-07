@@ -1,0 +1,12 @@
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+OpenCV: not authorized to capture video (status 0), requesting...
+OpenCV: camera failed to properly initialize!
+[ WARN:0@39.074] global cap_ffmpeg_impl.hpp:1217 open VIDEOIO/FFMPEG: Failed list devices for backend avfoundation
+Camera capture resolution: 0x0
+Traceback (most recent call last):
+  File "/Users/jaisidhsingh/Code/tuebingen/stadtmuseum-soi25/task1/single_overlay.py", line 259, in <module>
+    main()
+    ~~~~^^
+  File "/Users/jaisidhsingh/Code/tuebingen/stadtmuseum-soi25/task1/single_overlay.py", line 218, in main
+    raise RuntimeError("Could not open camera.")
+RuntimeError: Could not open camera.

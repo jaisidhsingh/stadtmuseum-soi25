@@ -1,18 +1,18 @@
 """mp_seg.py
 
-Single-pane, no-crop silhouette overlay using MediaPipe SelfieSegmentation.
+Single-pane, no-crop silhouette overlay using the MediaPipe Tasks
+InteractiveSegmenter (new Tasks API).
 
 Identical behaviour to single_overlay.py but the segmentation backend is
-MediaPipe's SelfieSegmentation (model_selection=1) which runs in real-time
-on CPU and produces soft, well-edged masks — a good middle ground between
-the lightweight PPHumanSeg and the high-quality-but-slow rembg u2net models.
+the MediaPipe InteractiveSegmenter running with a fixed centre-of-frame
+keypoint as the region-of-interest — equivalent to automatic person
+segmentation for a live camera feed.
 
 Usage
 -----
-    python mp_seg.py [--mode {rgb,sil}] [--mp-model {0,1}]
+    python mp_seg.py [--mode {rgb,sil}] [--model-path PATH]
 
-    --mp-model 0 : faster, lower quality (landscape model)
-    --mp-model 1 : slightly slower, better quality (general model) [default]
+    --model-path : path to the .task model file (default: MODEL_PATH below)
 
 Press 'q' or ESC to quit.
 """
@@ -23,7 +23,17 @@ import cv2
 import numpy as np
 from PIL import Image
 import mediapipe as mp
+from mediapipe.tasks import python as mp_python
+from mediapipe.tasks.python import vision as mp_vision
 from utils import BG_SWITCH_INTERVAL
+
+# ---------------------------------------------------------------------------
+# Model — download from:
+# https://storage.googleapis.com/mediapipe-models/interactive_segmenter/
+#         magic_touch/float32/1/magic_touch.task
+# Then update this path (or pass --model-path at runtime).
+# ---------------------------------------------------------------------------
+MODEL_PATH = "magic_touch.tflite"   # <-- placeholder: replace with real path
 
 
 WIN_NAME  = " "
@@ -44,27 +54,42 @@ FADE_FPS      = 60
 FADE_DURATION = 0.3    # seconds per half-phase (fade-out then fade-in)
 
 # Mask threshold — pixels with MediaPipe confidence above this are foreground.
-SEG_THRESHOLD = 0.5
+SEG_THRESHOLD = 0.7
 
 
 # ---------------------------------------------------------------------------
 # Segmentation
 # ---------------------------------------------------------------------------
 
-def _build_segmenter(model_selection: int = 1):
-    """Return a MediaPipe SelfieSegmentation instance."""
-    return mp.solutions.selfie_segmentation.SelfieSegmentation(
-        model_selection=model_selection
+def _build_segmenter(model_path: str = MODEL_PATH):
+    """
+    Return a MediaPipe Tasks InteractiveSegmenter instance.
+
+    Args:
+        model_path : path to the .task model file.
+    """
+    BaseOptions = mp_python.BaseOptions
+    InteractiveSegmenterOptions = mp_vision.InteractiveSegmenterOptions
+
+    options = InteractiveSegmenterOptions(
+        base_options=BaseOptions(model_asset_path=model_path),
+        # output_type=InteractiveSegmenterOptions.output_confidence_masks,
     )
+    return mp_vision.InteractiveSegmenter.create_from_options(options)
 
 
 def _segment_rgba(frame_bgr: np.ndarray, segmenter, scale: float) -> np.ndarray:
     """
-    Segment *frame_bgr* with MediaPipe and return an RGBA uint8 array.
+    Segment *frame_bgr* with the MediaPipe InteractiveSegmenter and return
+    an RGBA uint8 array.
+
+    A fixed centre-of-frame keypoint (0.5, 0.5) is used as the region-of-
+    interest, which gives equivalent behaviour to the old automatic selfie
+    segmentation for a person standing in front of the camera.
 
     Args:
         frame_bgr : camera frame in BGR.
-        segmenter : MediaPipe SelfieSegmentation instance.
+        segmenter : MediaPipe InteractiveSegmenter instance.
         scale     : uniform scale applied before inference (< 1 = faster).
 
     Returns:
@@ -76,10 +101,22 @@ def _segment_rgba(frame_bgr: np.ndarray, segmenter, scale: float) -> np.ndarray:
     nh = max(1, int(round(h * scale)))
     small = cv2.resize(rgb, (nw, nh), interpolation=cv2.INTER_AREA)
 
-    result = segmenter.process(small)          # expects RGB
-    # segmentation_mask: float32 (H, W), values in [0, 1]
-    mask = (result.segmentation_mask > SEG_THRESHOLD).astype(np.uint8) * 255
-    return np.dstack([small, mask])            # (H, W, 4) RGBA uint8
+    # Wrap in mp.Image (Tasks API expects SRGB)
+    mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=small)
+
+    # Use the centre of the frame as the keypoint ROI
+    RegionOfInterest = mp_vision.InteractiveSegmenterRegionOfInterest
+    NormalizedKeypoint = mp.tasks.components.containers.keypoint.NormalizedKeypoint
+    roi = RegionOfInterest(
+        format=RegionOfInterest.Format.KEYPOINT,
+        keypoint=NormalizedKeypoint(x=0.5, y=0.5),
+    )
+
+    result = segmenter.segment(mp_image, roi)
+    # confidence_masks[0]: mp.Image with float32 values in [0, 1]
+    conf = result.confidence_masks[0].numpy_view()   # (H, W) float32
+    mask = (conf > SEG_THRESHOLD).astype(np.uint8) * 255
+    return np.dstack([small, mask])                  # (H, W, 4) RGBA uint8
 
 
 # ---------------------------------------------------------------------------
@@ -195,12 +232,12 @@ def _play_fade(win_name: str, cap, old_entry: dict, new_entry: dict,
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Single-pane no-crop silhouette overlay using MediaPipe segmentation."
+        description="Single-pane no-crop silhouette overlay using MediaPipe InteractiveSegmenter."
     )
     parser.add_argument("--mode", choices=["rgb", "sil"], default="sil",
                         help="'rgb' keeps colour; 'sil' renders a dark silhouette.")
-    parser.add_argument("--mp-model", type=int, choices=[0, 1], default=1,
-                        help="MediaPipe model: 0=faster/lower-quality, 1=better-quality (default).")
+    parser.add_argument("--model-path", default=MODEL_PATH,
+                        help=f"Path to the .task model file (default: {MODEL_PATH!r}).")
     args = parser.parse_args()
 
     # Load backgrounds
@@ -211,8 +248,8 @@ def main():
             raise FileNotFoundError(f"Could not load background: {d['path']!r}")
         entries.append({"bg": bg, "scale": d["scale"], "anch_y": d["anch_y"]})
 
-    segmenter = _build_segmenter(model_selection=args.mp_model)
-    print(f"Using MediaPipe SelfieSegmentation model_selection={args.mp_model}")
+    segmenter = _build_segmenter(model_path=args.model_path)
+    print(f"Using MediaPipe InteractiveSegmenter — model: {args.model_path!r}")
 
     cap = cv2.VideoCapture(0)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH,  1920)
